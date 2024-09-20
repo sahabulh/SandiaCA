@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-import sys, os, datetime
+import sys, os, datetime, json
 from pathlib import Path
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 
 from pydantic import BaseModel
 
-from fastapi import FastAPI, Depends, HTTPException, Response, status, Query
+from fastapi import FastAPI, Depends, HTTPException, Response, status
 from fastapi.security import APIKeyHeader
 
 from cryptography import x509
@@ -38,7 +38,7 @@ class OCSP_CERT(BaseModel):
 class LEAF_CERT(BaseModel):
     issuer_serial: str
     domain: str
-    id: str
+    name: str
 
 def api_key_auth(x_api_key: str = Depends(X_API_KEY)):
     global access_type
@@ -63,7 +63,7 @@ async def create_rootCA_cert(data: ROOT_CERT, response: Response):
         builder = x509.CertificateBuilder()
         builder = builder.subject_name(utils.get_name(data.domain+' ROOT CA', data.domain))
         builder = builder.issuer_name(utils.get_name(data.domain+' ROOT CA', data.domain))
-        now = datetime.datetime.today()
+        now = datetime.datetime.now(datetime.UTC)
         ten_years_later = now.replace(year = now.year + 10)
         builder = builder.not_valid_before(now)
         builder = builder.not_valid_after(ten_years_later)
@@ -74,7 +74,7 @@ async def create_rootCA_cert(data: ROOT_CERT, response: Response):
         builder = builder.add_extension(x509.SubjectKeyIdentifier.from_public_key(public_key=public_key), critical=False)
         certificate = builder.sign(private_key=private_key, algorithm=hashes.SHA256())
         await utils.save_cert_and_key(cert=certificate, key=private_key)
-        return {"data":certificate.public_bytes(encoding=serialization.Encoding.PEM).decode('utf-8')}
+        return {"searial":certificate.serial_number}
     else:
         error = {"error":"This is an admin end-point. You are not authorized to use it as an user."}
         response.status_code = status.HTTP_401_UNAUTHORIZED
@@ -90,7 +90,7 @@ async def create_subCA_cert(data: SUBCA_CERT, response: Response):
         builder = x509.CertificateBuilder()
         builder = builder.subject_name(utils.get_name(name=data.domain+' SubCA '+str(data.tier), domain=data.domain))
         builder = builder.issuer_name(issuer_cert.subject)
-        now = datetime.datetime.today()
+        now = datetime.datetime.now(datetime.UTC)
         three_years_later = now.replace(year = now.year + 3)
         builder = builder.not_valid_before(now)
         builder = builder.not_valid_after(three_years_later)
@@ -103,7 +103,7 @@ async def create_subCA_cert(data: SUBCA_CERT, response: Response):
         builder = builder.add_extension(x509.AuthorityInformationAccess([x509.AccessDescription(AuthorityInformationAccessOID.OCSP, x509.UniformResourceIdentifier("http://ocsp.patriasecurity.com:8001"))]), critical=False)
         certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA256())
         await utils.save_cert_and_key(cert=certificate, key=private_key)
-        return {"data":certificate.public_bytes(encoding=serialization.Encoding.PEM).decode('utf-8')}
+        return {"searial":certificate.serial_number}
     else:
         error = {"error":"This is an admin end-point. You are not authorized to use it as an user."}
         response.status_code = status.HTTP_401_UNAUTHORIZED
@@ -119,7 +119,7 @@ async def create_ocsp_signer_cert(data: OCSP_CERT, response: Response):
         builder = x509.CertificateBuilder()
         builder = builder.subject_name(utils.get_name(name='OCSP Responder', domain='OCSP'))
         builder = builder.issuer_name(issuer_cert.subject)
-        now = datetime.datetime.today()
+        now = datetime.datetime.now(datetime.UTC)
         three_years_later = now.replace(year = now.year + 3)
         builder = builder.not_valid_before(now)
         builder = builder.not_valid_after(three_years_later)
@@ -131,7 +131,7 @@ async def create_ocsp_signer_cert(data: OCSP_CERT, response: Response):
         builder = builder.add_extension(x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(issuer_ski.value), critical=False)
         certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA256())
         await utils.save_cert_and_key(cert=certificate, key=private_key)
-        return {"data":certificate.public_bytes(encoding=serialization.Encoding.PEM).decode('utf-8')}
+        return {"searial":certificate.serial_number}
     else:
         error = {"error":"This is an admin end-point. You are not authorized to use it as an user."}
         response.status_code = status.HTTP_401_UNAUTHORIZED
@@ -145,9 +145,9 @@ async def create_leaf_cert(data: LEAF_CERT, response: Response):
         private_key = ec.generate_private_key(ec.SECP256R1())
         public_key = private_key.public_key()
         builder = x509.CertificateBuilder()
-        builder = builder.subject_name(utils.get_name(name=data.id, domain=data.domain))
+        builder = builder.subject_name(utils.get_name(name=data.name, domain=data.domain))
         builder = builder.issuer_name(issuer_cert.subject)
-        now = datetime.datetime.today()
+        now = datetime.datetime.now(datetime.UTC)
         three_month_later = datetime.timedelta(90, 0, 0)
         builder = builder.not_valid_before(now)
         builder = builder.not_valid_after(now + three_month_later)
@@ -157,10 +157,10 @@ async def create_leaf_cert(data: LEAF_CERT, response: Response):
         builder = builder.add_extension(x509.KeyUsage(True,True,False,False,True,False,False,False,False), critical=True)
         builder = builder.add_extension(x509.SubjectKeyIdentifier.from_public_key(public_key=public_key), critical=False)
         builder = builder.add_extension(x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(issuer_ski.value), critical=False)
-        builder = builder.add_extension(x509.AuthorityInformationAccess([x509.AccessDescription(AuthorityInformationAccessOID.OCSP, x509.UniformResourceIdentifier("http://host.docker.internal:8001"))]), critical=False)
+        builder = builder.add_extension(x509.AuthorityInformationAccess([x509.AccessDescription(AuthorityInformationAccessOID.OCSP, x509.UniformResourceIdentifier("http://ocsp.patriasecurity.com:8001"))]), critical=False)
         certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA256())
         await utils.save_cert_and_key(cert=certificate, key=private_key)
-        return {"data":certificate.public_bytes(encoding=serialization.Encoding.PEM).decode('utf-8')}
+        return {"searial":certificate.serial_number}
     else:
         error = {"error":"This is an admin end-point. You are not authorized to use it as an user."}
         response.status_code = status.HTTP_401_UNAUTHORIZED
@@ -183,16 +183,64 @@ async def list_certs():
     }
     return data
 
-@app.get("/cert/{serial}", summary="Get certificate by serial", dependencies=[Depends(api_key_auth)])
+@app.get("/cert/{serial}", summary="Get PEM encoded certificate by serial", dependencies=[Depends(api_key_auth)])
 async def get_cert_by_serial(serial: str):
     cert_filename = str(serial)+".pem"
     path = str(Path(__file__).absolute().parent.parent)+'/vault/'
     if Path(path+cert_filename).is_file():
         with open(path+cert_filename,"r") as file:
             data = file.read()
-        return {"data": data}
+        return {"pem_cert": data}
     else:
         raise HTTPException(
-            status_code=404,
-            detail="Requested certificate not found."
+            status_code=500,
+            detail="Requested certificate not found in the server database"
         )
+    
+@app.post("/revoke/{serial}", summary="Revoke certificate by serial", dependencies=[Depends(api_key_auth)])
+async def revoke_cert_by_serial(serial: str, res: Response):
+    try:
+        with open("../cert_db.json","r") as file:
+            cert_db = json.load(file)
+        if cert_db[serial]["status"] != 1:
+            cert_db[serial]["status"] = 1
+            json_object = json.dumps(cert_db, indent=4)
+            with open("../cert_db.json", "w") as outfile:
+                outfile.write(json_object)
+            return {"details": "The certificate has been revoked"}
+        else:
+            res.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+            return {"details":"The certificate is already revoked"}
+    except FileNotFoundError:
+        res.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"details":"Database file not found"}
+    except KeyError:
+        res.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"details":"Entry for the serial not found in the database"}
+    except Exception as err:
+        res.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"details":repr(err)}
+    
+@app.post("/unrevoke/{serial}", summary="Unrevoke certificate by serial", dependencies=[Depends(api_key_auth)])
+async def revoke_cert_by_serial(serial: str, res: Response):
+    try:
+        with open("../cert_db.json","r") as file:
+            cert_db = json.load(file)
+        if cert_db[serial]["status"] == 1:
+            cert_db[serial]["status"] = 0
+            json_object = json.dumps(cert_db, indent=4)
+            with open("../cert_db.json", "w") as outfile:
+                outfile.write(json_object)
+            return {"details": "The certificate has been unrevoked"}
+        else:
+            res.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+            return {"details":"The certificate is already unrevoked"}
+    except FileNotFoundError:
+        res.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"details":"Database file not found"}
+    except KeyError:
+        res.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"details":"Entry for the serial not found in the database"}
+    except Exception as err:
+        res.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"details":repr(err)}
