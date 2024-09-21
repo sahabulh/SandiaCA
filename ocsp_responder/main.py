@@ -28,7 +28,8 @@ async def get_method_process(full_path: str):
         req_data = base64.b64decode(full_path)
         req = load_der_ocsp_request(req_data)
         res = await get_response(req)
-    except:
+    except Exception as err:
+        print(f"{type(err).__name__}: {err.args}")
         res = cert_status(OCSPResponseStatus.MALFORMED_REQUEST)
     return Response(content=res, media_type="application/ocsp-response")
 
@@ -47,13 +48,17 @@ async def get_response(req: ocsp.OCSPRequest):
         target_cert = await utils.load_cert(target_serial)
         issuer_cert = await utils.load_cert(issuer_serial)
         responder_cert, responder_key = await utils.load_cert_and_key(ocsp_serial)
+        if cert_db[target_serial]["revocation_time"]:
+            revocation_time = datetime.datetime.fromisoformat(cert_db[target_serial]["revocation_time"])
+        else:
+            revocation_time = None
         
         builder = builder.add_response(
             cert=target_cert, issuer=issuer_cert, algorithm=req.hash_algorithm,
             cert_status=OCSPCertStatus(cert_db[target_serial]["status"]),
             this_update=datetime.datetime.now(),
             next_update=datetime.datetime.now() + datetime.timedelta(1,0,0),
-            revocation_time=None, revocation_reason=None
+            revocation_time=revocation_time, revocation_reason=None
         ).certificates(
             certs = [responder_cert]
         ).responder_id(

@@ -204,6 +204,7 @@ async def revoke_cert_by_serial(serial: str, res: Response):
             cert_db = json.load(file)
         if cert_db[serial]["status"] != 1:
             cert_db[serial]["status"] = 1
+            cert_db[serial]["revocation_time"] = datetime.datetime.now(datetime.UTC).isoformat()
             json_object = json.dumps(cert_db, indent=4)
             with open("../cert_db.json", "w") as outfile:
                 outfile.write(json_object)
@@ -228,6 +229,7 @@ async def revoke_cert_by_serial(serial: str, res: Response):
             cert_db = json.load(file)
         if cert_db[serial]["status"] == 1:
             cert_db[serial]["status"] = 0
+            cert_db[serial]["revocation_time"] = None
             json_object = json.dumps(cert_db, indent=4)
             with open("../cert_db.json", "w") as outfile:
                 outfile.write(json_object)
