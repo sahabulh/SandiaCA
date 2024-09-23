@@ -1,7 +1,5 @@
-__pycache__/
-ca/__pycache__/
-ocsp_responder/__pycache__/
-
+__pycache__
+.pytest_cache
 .ipynb_checkpoints
 
 *.ipynb
