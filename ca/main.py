@@ -74,7 +74,7 @@ async def create_rootCA_cert(data: ROOT_CERT, response: Response):
         builder = builder.add_extension(x509.SubjectKeyIdentifier.from_public_key(public_key=public_key), critical=False)
         certificate = builder.sign(private_key=private_key, algorithm=hashes.SHA256())
         await utils.save_cert_and_key(cert=certificate, key=private_key)
-        return {"searial":certificate.serial_number}
+        return {"serial":certificate.serial_number}
     else:
         error = {"error":"This is an admin end-point. You are not authorized to use it as an user."}
         response.status_code = status.HTTP_401_UNAUTHORIZED
@@ -103,7 +103,7 @@ async def create_subCA_cert(data: SUBCA_CERT, response: Response):
         builder = builder.add_extension(x509.AuthorityInformationAccess([x509.AccessDescription(AuthorityInformationAccessOID.OCSP, x509.UniformResourceIdentifier("http://ocsp.patriasecurity.com:8001"))]), critical=False)
         certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA256())
         await utils.save_cert_and_key(cert=certificate, key=private_key)
-        return {"searial":certificate.serial_number}
+        return {"serial":certificate.serial_number}
     else:
         error = {"error":"This is an admin end-point. You are not authorized to use it as an user."}
         response.status_code = status.HTTP_401_UNAUTHORIZED
@@ -131,7 +131,7 @@ async def create_ocsp_signer_cert(data: OCSP_CERT, response: Response):
         builder = builder.add_extension(x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(issuer_ski.value), critical=False)
         certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA256())
         await utils.save_cert_and_key(cert=certificate, key=private_key)
-        return {"searial":certificate.serial_number}
+        return {"serial":certificate.serial_number}
     else:
         error = {"error":"This is an admin end-point. You are not authorized to use it as an user."}
         response.status_code = status.HTTP_401_UNAUTHORIZED
@@ -160,7 +160,7 @@ async def create_leaf_cert(data: LEAF_CERT, response: Response):
         builder = builder.add_extension(x509.AuthorityInformationAccess([x509.AccessDescription(AuthorityInformationAccessOID.OCSP, x509.UniformResourceIdentifier("http://ocsp.patriasecurity.com:8001"))]), critical=False)
         certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA256())
         await utils.save_cert_and_key(cert=certificate, key=private_key)
-        return {"searial":certificate.serial_number}
+        return {"serial":certificate.serial_number}
     else:
         error = {"error":"This is an admin end-point. You are not authorized to use it as an user."}
         response.status_code = status.HTTP_401_UNAUTHORIZED
