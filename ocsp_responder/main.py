@@ -49,8 +49,6 @@ async def get_response(req: ocsp.OCSPRequest):
     builder = ocsp.OCSPResponseBuilder()
 
     try:
-        if req.hash_algorithm.name == "sha1":
-            raise SHA1Error()
         with open("../cert_db.json","r") as file:
             cert_db = json.load(file)
         with open("../ocsp_db.json","r") as file:

@@ -86,8 +86,8 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('test_cert', test_certs_good)
 
 def test_ocsp_sha1(test_cert):
-    cert, issuer, _ = test_cert
-    assert get_cert_status_for_path(cert,issuer,SHA1()) == OCSPResponseStatus.UNAUTHORIZED
+    cert, issuer, expected_status = test_cert
+    assert get_cert_status_for_path(cert,issuer,SHA1()) == expected_status
 
 def test_ocsp_sha256(test_cert):
     cert, issuer, expected_status = test_cert
