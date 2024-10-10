@@ -60,7 +60,7 @@ def get_cert_status_for_path(path, issuer_path, hash):
     ocsp_server = get_ocsp_server(cert)
     return get_ocsp_cert_status(ocsp_server, cert, issuer_cert, hash)
 
-test_certs_good = [
+test_certs = [
     (CERT_PATH.CPO_SUBCA_1,CERT_PATH.V2G_ROOT,OCSPCertStatus.GOOD),
     (CERT_PATH.CPO_SUBCA_2,CERT_PATH.CPO_SUBCA_1,OCSPCertStatus.GOOD),
     (CERT_PATH.CSMS_SERVER,CERT_PATH.CPO_SUBCA_2,OCSPCertStatus.GOOD),
@@ -82,8 +82,8 @@ test_certs_good = [
 # Define the pytest_generate_tests hook to generate test cases
 def pytest_generate_tests(metafunc):
     if 'test_cert' in metafunc.fixturenames:
-        # Generate test cases based on the user_roles list
-        metafunc.parametrize('test_cert', test_certs_good)
+        # Generate test cases based on the test_certs list
+        metafunc.parametrize('test_cert', test_certs)
 
 def test_ocsp_sha1(test_cert):
     cert, issuer, expected_status = test_cert

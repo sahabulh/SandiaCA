@@ -9,20 +9,11 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.x509 import ocsp
 
 import utils
+from exceptions import SHA1Error, WrongIssuerError, ResponseNotAllowedError
 
 app = FastAPI()
 
-class SHA1Error(Exception):
-    def __init__(self, value = "SHA1 hash is not allowed"):
-        super().__init__(value)
 
-class ResponseNotAllowedError(Exception):
-    def __init__(self, value):
-        super().__init__(value)
-
-class WrongIssuerError(Exception):
-    def __init__(self, value = "Issuer in the database doesn't match the request hash data"):
-        super().__init__(value)
 
 @app.post("/")
 async def post_method_process(request: Request):
@@ -69,7 +60,7 @@ async def get_response(req: ocsp.OCSPRequest):
         if req.issuer_key_hash != target_req.issuer_key_hash or req.issuer_name_hash != target_req.issuer_name_hash:
             raise WrongIssuerError()
 
-        responder_cert, responder_key = await utils.load_cert_and_key(ocsp_serial)
+        responder_cert, responder_key = utils.load_cert_and_key(ocsp_serial)
         if cert_db[target_serial]["revocation_time"]:
             revocation_time = datetime.datetime.fromisoformat(cert_db[target_serial]["revocation_time"])
         else:
