@@ -209,7 +209,7 @@ async def unrevoke_cert_by_serial(serial: str, response: Response):
         return error
 
 @app.post("/profile/crypto", summary="Create a cryptographic profile", dependencies=[Depends(api_key_auth)], tags=["Profile"])
-async def create_crypto(profile: models.CryptoProfile, response: Response):
+async def create_crypto(profile: models.CryptoProfileCreate, response: Response):
     profiles = sandia_ca.crypto_profiles
     post = {"name": profile.name, "key_algorithm": profile.key_algorithm, "signature_hash": profile.signature_hash}
     try:
@@ -220,7 +220,7 @@ async def create_crypto(profile: models.CryptoProfile, response: Response):
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return {"error": "Failed to connect to MongoDB server"}
 
-@app.get("/profile/crypto/{profile_name}", summary="Get a cryptographic profile", dependencies=[Depends(api_key_auth)], tags=["Profile"])
+@app.get("/profile/crypto/{profile_name}", summary="Get a cryptographic profile by name", dependencies=[Depends(api_key_auth)], tags=["Profile"])
 async def get_crypto(profile_name: str, response: Response):
     try:
         return await utils.get_profile(type="crypto", name=profile_name)
@@ -231,8 +231,24 @@ async def get_crypto(profile_name: str, response: Response):
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return {"error": str(err)}
     
+@app.put("/profile/crypto/{profile_name}", summary="Update a cryptographic profile by name", dependencies=[Depends(api_key_auth)], tags=["Profile"])
+async def update_crypto(profile_name: str, profile: models.CryptoProfile, response: Response):
+    try:
+        profile_dict = profile.model_dump(exclude_unset=True)
+        updated_doc = await utils.update(query={"name": profile_name}, value=profile_dict, collection_name="crypto_profiles")
+        if updated_doc:
+            return {"details": updated_doc}
+        else:
+            raise EntryNotFoundError(id_type="name", value=profile_name)
+    except EntryNotFoundError as err:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"error": str(err)}
+    except Exception as err:
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"error": str(err)}
+    
 @app.post("/profile/entity", summary="Create an entity profile", dependencies=[Depends(api_key_auth)], tags=["Profile"])
-async def create_entity(profile: models.EntityProfile, response: Response):
+async def create_entity(profile: models.EntityProfileCreate, response: Response):
     profiles = sandia_ca.entity_profiles
     post = profile.__dict__
     try:
@@ -243,10 +259,26 @@ async def create_entity(profile: models.EntityProfile, response: Response):
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return {"error": "Failed to connect to MongoDB server"}
 
-@app.get("/profile/entity/{profile_name}", summary="Get an entity profile", dependencies=[Depends(api_key_auth)], tags=["Profile"])
+@app.get("/profile/entity/{profile_name}", summary="Get an entity profile by name", dependencies=[Depends(api_key_auth)], tags=["Profile"])
 async def get_entity(profile_name: str, response: Response):
     try:
         return await utils.get_profile(type="entity", name=profile_name)
+    except EntryNotFoundError as err:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"error": str(err)}
+    except Exception as err:
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"error": str(err)}
+    
+@app.put("/profile/entity/{profile_name}", summary="Update an entity profile by name", dependencies=[Depends(api_key_auth)], tags=["Profile"])
+async def update_entity(profile_name: str, profile: models.EntityProfile, response: Response):
+    try:
+        profile_dict = profile.model_dump(exclude_unset=True)
+        updated_doc = await utils.update(query={"name": profile_name}, value=profile_dict, collection_name="entity_profiles")
+        if updated_doc:
+            return {"details": updated_doc}
+        else:
+            raise EntryNotFoundError(id_type="name", value=profile_name)
     except EntryNotFoundError as err:
         response.status_code = status.HTTP_404_NOT_FOUND
         return {"error": str(err)}

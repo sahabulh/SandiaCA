@@ -22,11 +22,23 @@ class Validity(NamedTuple):
     days: int = 0
 
 class CryptoProfile(BaseModel):
+    name: Optional[str] = None
+    key_algorithm: Optional[str] = None
+    signature_hash: Optional[str] = None
+
+class EntityProfile(BaseModel):
+    name: Optional[str] = None
+    key_usage: Optional[KeyUsage] = None
+    extended_key_usage: Optional[List[str]] = None
+    basic_constraints: Optional[BasicConstraints] = None
+    validity: Optional[Validity] = None
+
+class CryptoProfileCreate(CryptoProfile):
     name: str
     key_algorithm: str
     signature_hash: str
 
-class EntityProfile(BaseModel):
+class EntityProfileCreate(BaseModel):
     name: str
     key_usage: KeyUsage = KeyUsage()
     extended_key_usage: Optional[List[str]] = None

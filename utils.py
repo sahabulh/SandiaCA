@@ -83,9 +83,8 @@ async def get_profile(type: str, name: str) -> dict:
         profiles = sandia_ca.entity_profiles
     query = {"name": name}
     try:
-        profile = profiles.find_one(query)
+        profile = profiles.find_one(query, projection={'_id': False})
         if profile:
-            del profile["_id"]
             return profile
         else:
             raise EntryNotFoundError(id_type="name", value=name)
@@ -106,9 +105,8 @@ async def get_cert_info(serial: str) -> models.CertInfo:
     certs = sandia_ca.certs
     query = {"serial": serial}
     try:
-        cert_info = certs.find_one(query)
+        cert_info = certs.find_one(query, projection={'_id': False})
         if cert_info:
-            del cert_info["_id"]
             return models.CertInfo(**cert_info)
         else:
             raise EntryNotFoundError(id_type="serial", value=serial)
@@ -117,7 +115,7 @@ async def get_cert_info(serial: str) -> models.CertInfo:
     
 async def update(query: dict, value: dict, collection_name: str):
     collection = sandia_ca[collection_name]
-    return collection.find_one_and_update(query, {'$set': value}, return_document = ReturnDocument.AFTER)
+    return collection.find_one_and_update(query, {'$set': value}, projection={'_id': False}, return_document = ReturnDocument.AFTER)
 
 async def generate_private_key(key_algorithm: str) -> Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]:
     if key_algorithm == "secp256r1":
