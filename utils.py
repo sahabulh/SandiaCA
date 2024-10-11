@@ -112,6 +112,19 @@ async def get_cert_info(serial: str) -> models.CertInfo:
             raise EntryNotFoundError(id_type="serial", value=serial)
     except (ServerSelectionTimeoutError, ConnectionFailure):
         raise DBConnectionError()
+
+# TODO: Add support for one SubCA case  
+async def get_chain_serial_for_leaf(leaf_serial: str) -> dict:
+    leaf_cert_info = await get_cert_info(leaf_serial)
+    subca2_cert_info = await get_cert_info(leaf_cert_info.issuer)
+    subca1_cert_info = await get_cert_info(subca2_cert_info.issuer)
+    root_cert_info = await get_cert_info(subca1_cert_info.issuer)
+    return {
+        "ROOT": root_cert_info.serial,
+        "SUBCA1": subca1_cert_info.serial,
+        "SUBCA2": subca2_cert_info.serial,
+        "LEAF": leaf_serial
+    }
     
 async def update(query: dict, value: dict, collection_name: str):
     collection = sandia_ca[collection_name]

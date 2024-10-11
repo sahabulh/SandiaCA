@@ -4,8 +4,6 @@ from cryptography.x509 import Certificate, load_pem_x509_certificate
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.hazmat.primitives.asymmetric import ec, ed448
 
-from typing import Union, Tuple
-
 from pymongo import MongoClient
 
 from pathlib import Path
