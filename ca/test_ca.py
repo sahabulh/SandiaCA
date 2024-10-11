@@ -44,7 +44,7 @@ async def unload_db():
     mongodb_client = MongoClient("localhost",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
     sandia_ca = mongodb_client.sandia_ca
     await utils.unload_db(sandia_ca)
-    sandia_ca.certs.drop()
+    # sandia_ca.certs.drop()
 
 @pytest.fixture(autouse=True)
 def run_before_and_after_tests():
@@ -110,6 +110,13 @@ def test_issue_chain():
     assert cert.signature_algorithm_oid._name == "ed448"
     assert isinstance(key, ed448.Ed448PrivateKey)
 
+    res_data = issue_ocsp_cert(crypto_profile, subca2_serial)
+    print(res_data)
+    ocsp_subca2_serial = res_data["serial"]
+    cert, key = load_cert_and_key(ocsp_subca2_serial)
+    assert cert.signature_algorithm_oid._name == "ed448"
+    assert isinstance(key, ed448.Ed448PrivateKey)
+
 def issue_root_cert(profile: str) -> dict:
     req_data = {
         "domain": "V2G",
@@ -158,4 +165,16 @@ def issue_leaf_cert(profile: str, issuer_serial: str) -> dict:
         "name": "SECCLeaf"
     }
     r = requests.post('http://127.0.0.1:8000/leaf', headers=headers, data=json.dumps(req_data))
+    return r.json()
+
+def issue_ocsp_cert(profile: str, issuer_serial: str) -> dict:
+    req_data = {
+        "domain": "OCSP",
+        "profile": {
+            "crypto_profile_name": profile,
+            "entity_profile_name": "iso2_ocsp"
+        },
+        "issuer_serial": issuer_serial
+    }
+    r = requests.post('http://127.0.0.1:8000/ocsp', headers=headers, data=json.dumps(req_data))
     return r.json()
