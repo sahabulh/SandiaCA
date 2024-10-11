@@ -32,18 +32,20 @@ class EntityProfile(BaseModel):
     extended_key_usage: Optional[List[str]] = None
     basic_constraints: Optional[BasicConstraints] = None
     validity: Optional[Validity] = None
+    ocsp_url: Optional[str] = None
 
 class CryptoProfileCreate(CryptoProfile):
     name: str
     key_algorithm: str
     signature_hash: str
 
-class EntityProfileCreate(BaseModel):
+class EntityProfileCreate(EntityProfile):
     name: str
     key_usage: KeyUsage = KeyUsage()
     extended_key_usage: Optional[List[str]] = None
     basic_constraints: BasicConstraints = BasicConstraints()
     validity: Validity = Validity()
+    ocsp_url: Optional[str] = "http://127.0.0.1:8001"
 
 class Profile(BaseModel):
     crypto_profile_name: Optional[str] = None

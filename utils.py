@@ -168,6 +168,14 @@ async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.Elli
             extended_key_usage.append(ExtendedKeyUsageOID.CLIENT_AUTH)
     if extended_key_usage:
         builder = builder.add_extension(x509.ExtendedKeyUsage(extended_key_usage), critical=True)
+
+    if entity_profile.ocsp_url:
+        builder = builder.add_extension(x509.AuthorityInformationAccess([
+            x509.AccessDescription(
+                AuthorityInformationAccessOID.OCSP,
+                x509.UniformResourceIdentifier(entity_profile.ocsp_url)
+            )
+        ]), critical=False)
     
     now = datetime.datetime.now(datetime.UTC)
     new_year = now.year + entity_profile.validity.years
