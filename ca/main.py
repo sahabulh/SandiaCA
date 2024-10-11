@@ -153,61 +153,36 @@ async def get_key_by_serial(serial: str, response: Response):
 async def revoke_cert_by_serial(serial: str, response: Response):
     if access_type == "full":
         try:
-            with open("../cert_db.json","r") as file:
-                cert_db = json.load(file)
-            if cert_db[serial]["status"] != 1:
-                cert_db[serial]["status"] = 1
-                cert_db[serial]["revocation_time"] = datetime.datetime.now(datetime.UTC).isoformat()
-                json_object = json.dumps(cert_db, indent=4)
-                with open("../cert_db.json", "w") as outfile:
-                    outfile.write(json_object)
+            cert_info = await utils.get_cert_info(serial=serial)
+            if cert_info.status != 1:
+                revocation_time = datetime.datetime.now(datetime.UTC).isoformat()
+                await utils.update(query={"serial": serial}, value={"status": 1, "revocation_time": revocation_time}, collection_name="certs")
                 return {"details": "The certificate has been revoked"}
             else:
-                response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
-                return {"details":"The certificate is already revoked"}
-        except FileNotFoundError:
-            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return {"details":"Database file not found"}
-        except KeyError:
-            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return {"details":"Entry for the serial not found in the database"}
+                return {"details": "The certificate is already revoked"}
         except Exception as err:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return {"details":repr(err)}
+            return {"details": str(err)}
     else:
-        error = {"error":"This is an admin end-point. You are not authorized to use it as an user."}
         response.status_code = status.HTTP_401_UNAUTHORIZED
-        return error
+        return {"error":"This is an admin end-point. You are not authorized to use it as an user."}
     
 @app.post("/unrevoke/{serial}", summary="Unrevoke certificate by serial", dependencies=[Depends(api_key_auth)], tags=["Revocation"])
 async def unrevoke_cert_by_serial(serial: str, response: Response):
     if access_type == "full":
         try:
-            with open("../cert_db.json","r") as file:
-                cert_db = json.load(file)
-            if cert_db[serial]["status"] == 1:
-                cert_db[serial]["status"] = 0
-                cert_db[serial]["revocation_time"] = None
-                json_object = json.dumps(cert_db, indent=4)
-                with open("../cert_db.json", "w") as outfile:
-                    outfile.write(json_object)
+            cert_info = await utils.get_cert_info(serial=serial)
+            if cert_info.status == 1:
+                await utils.update(query={"serial": serial}, value={"status": 0, "revocation_time": None}, collection_name="certs")
                 return {"details": "The certificate has been unrevoked"}
             else:
-                response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
-                return {"details":"The certificate is already unrevoked"}
-        except FileNotFoundError:
-            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return {"details":"Database file not found"}
-        except KeyError:
-            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return {"details":"Entry for the serial not found in the database"}
+                return {"details": "The certificate is already unrevoked"}
         except Exception as err:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return {"details":repr(err)}
+            return {"details": str(err)}
     else:
-        error = {"error":"This is an admin end-point. You are not authorized to use it as an user."}
         response.status_code = status.HTTP_401_UNAUTHORIZED
-        return error
+        return {"error":"This is an admin end-point. You are not authorized to use it as an user."}
 
 @app.post("/profile/crypto", summary="Create a cryptographic profile", dependencies=[Depends(api_key_auth)], tags=["Profile"])
 async def create_crypto(profile: models.CryptoProfileCreate, response: Response):
