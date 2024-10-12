@@ -21,3 +21,7 @@ class NotImplementedError(Exception):
 class EntryNotFoundError(Exception):
     def __init__(self, id_type: str, value: str):
         super().__init__("Entry with " + id_type + " " + value + " not found in the database.")
+
+class IssuerInvalidError(Exception):
+    def __init__(self, value = "The issuer certificate is invalid and can't be used to issue new certificates."):
+        super().__init__(value)

@@ -47,7 +47,7 @@ async def load_db():
 mongodb_client = MongoClient("localhost",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
 sandia_ca = mongodb_client.sandia_ca
 asyncio.run(load_db())
-test_certs = asyncio.run(get_test_cases("490794422650056450387334090886337104868988665452"))
+test_certs = asyncio.run(get_test_cases("219646264740797746216327186006366433638032474847"))
 
 async def unload_db():
     mongodb_client = MongoClient("localhost",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)

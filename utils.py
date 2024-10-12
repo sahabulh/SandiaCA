@@ -17,7 +17,7 @@ from pymongo.database import Database
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 
 import models
-from exceptions import DBConnectionError, EntryNotFoundError
+from exceptions import DBConnectionError, EntryNotFoundError, IssuerInvalidError
 
 # Define the database variable
 sandia_ca = None
@@ -147,6 +147,8 @@ async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.Elli
         issuer_ski = issuer_cert.extensions.get_extension_for_class(x509.SubjectKeyIdentifier)
         issuer_cert_info = await get_cert_info(serial=data.issuer_serial)
         issuer_key = load_pem_private_key(issuer_cert_info.key.encode(), password=None)
+        if issuer_cert_info.status != 0:
+            raise IssuerInvalidError("The issuer certificate is revoked and can't be used to issue new certificates.")
     
     if not data.profile.crypto_profile_name:
         data.profile.crypto_profile_name = issuer_cert_info.profile.crypto_profile_name
