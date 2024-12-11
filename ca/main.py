@@ -132,7 +132,7 @@ async def list_certs():
 @app.get("/cert/{serial}", summary="Get PEM encoded certificate by serial", dependencies=[Depends(api_key_auth)], tags=["Certificate"])
 async def get_cert_by_serial(serial: str, response: Response):
     try:
-        return {"details": utils.load_cert(serial)}
+        return {"details": utils.load_cert_as_string(serial)}
     except Exception as err:
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return {"error": str(err)}
@@ -141,7 +141,7 @@ async def get_cert_by_serial(serial: str, response: Response):
 async def get_key_by_serial(serial: str, response: Response):
     if access_type == "full":
         try:
-            return {"details": utils.load_key(serial)}
+            return {"details": utils.load_key_as_string(serial)}
         except Exception as err:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return {"error": str(err)}

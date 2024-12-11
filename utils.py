@@ -1,4 +1,4 @@
-import datetime
+import os, datetime
 
 from cryptography import x509
 from cryptography.x509 import load_pem_x509_certificate
@@ -33,6 +33,8 @@ def get_name(name: str, domain: str) -> x509.Name:
         ])
 
 async def save_cert_and_key(cert: x509.Certificate, key: Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey], issuer_serial: int, profile: models.Profile):
+    if not os.path.exists(abs_path+"/vault/"):
+        os.makedirs(abs_path+"/vault/", exist_ok=True)
     cert_data = cert.public_bytes(encoding=serialization.Encoding.PEM).decode('utf-8')
     with open(abs_path+"/vault/"+str(cert.serial_number)+".pem","w") as file:
         file.write(cert_data)
@@ -57,23 +59,31 @@ def load_cert_and_key(serial: str) -> Tuple[x509.Certificate, Union[ec.EllipticC
     return cert, key
 
 def load_cert(serial: str) -> x509.Certificate:
-    with open(abs_path+"/vault/"+serial+".pem","r") as file:
-        cert_data = file.read().encode()
+    cert_data = load_cert_as_string(serial).encode()
     cert = load_pem_x509_certificate(cert_data)
     return cert
 
 def load_key(serial: str) -> Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]:
+    key_data = load_key_as_string(serial).encode()
+    key = load_pem_private_key(key_data, password=None)
+    return key
+
+def load_cert_as_string(serial: str) -> str:
+    with open(abs_path+"/vault/"+serial+".pem","r") as file:
+        cert = file.read()
+    return cert
+
+def load_key_as_string(serial: str) -> str:
     certs = sandia_ca.certs
     query = {"serial": serial}
     try:
         cert_info = certs.find_one(query)
         if cert_info:
-            key_data = cert_info["key"].encode()
+            key = cert_info["key"]
         else:
             raise EntryNotFoundError(id_type="serial", value=serial)
     except (ServerSelectionTimeoutError, ConnectionFailure):
         raise DBConnectionError()
-    key = load_pem_private_key(key_data, password=None)
     return key
 
 async def get_profile(type: str, name: str) -> dict:
