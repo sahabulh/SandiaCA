@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys, os, datetime, json
+import sys, os, datetime
 from pathlib import Path
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 

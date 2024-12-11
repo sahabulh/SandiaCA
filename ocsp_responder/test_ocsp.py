@@ -1,6 +1,6 @@
 # Tests revocation status of all the certs in the cert_db.json file
 
-import base64, requests, asyncio, sys, pytest, time
+import base64, requests, sys
 from enum import StrEnum
 from cryptography import x509
 from cryptography.x509 import ocsp
