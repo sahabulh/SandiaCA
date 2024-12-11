@@ -205,8 +205,12 @@ async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.Elli
     now = datetime.datetime.now(datetime.UTC)
     new_year = now.year + entity_profile.validity.years
     validity = now.replace(year = new_year)
-    new_year = validity.year + (validity.month + entity_profile.validity.months) // 12
-    new_month = (validity.month + entity_profile.validity.months) % 12
+    if (validity.month + entity_profile.validity.months) % 12 == 0:
+        new_month = 12
+        new_year = validity.year + (validity.month + entity_profile.validity.months) // 12 - 1
+    else:
+        new_month = (validity.month + entity_profile.validity.months) % 12
+        new_year = validity.year + (validity.month + entity_profile.validity.months) // 12
     validity = validity.replace(year = new_year, month = new_month)
     validity += datetime.timedelta(days=entity_profile.validity.days)
 
