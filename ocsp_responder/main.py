@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-import sys, datetime, base64, json
+import sys, datetime, base64, requests
 from pathlib import Path
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 
 from fastapi import FastAPI, Request, Response
 
-from cryptography.x509 import ocsp
+from cryptography.x509 import ocsp, load_pem_x509_certificate
 from cryptography.x509.ocsp import load_der_ocsp_request, OCSPCertStatus, OCSPResponseStatus
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -19,6 +19,13 @@ from exceptions import SHA1Error, WrongIssuerError, ResponseNotAllowedError, Ent
 
 # Define the database variable
 sandia_ca = None
+
+ca_url = "http://ca:8000/"
+headers = {
+    'accept':       'application/json',
+    'X-API-KEY':    'iamadmin',
+    'Content-Type': 'application/json',
+}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -66,8 +73,10 @@ async def get_response(req: ocsp.OCSPRequest):
         except EntryNotFoundError:
             raise ResponseNotAllowedError("Information not available in the database. This might mean that the responder is not authorized to send a response for this certificate.")
         
-        target_cert = utils.load_cert(target_serial)
-        issuer_cert = utils.load_cert(issuer_serial)
+        r = requests.get(ca_url+"cert/"+target_serial, headers=headers)
+        target_cert = load_pem_x509_certificate(r.json()["details"].encode())
+        r = requests.get(ca_url+"cert/"+issuer_serial, headers=headers)
+        issuer_cert = load_pem_x509_certificate(r.json()["details"].encode())
 
         req_builder = ocsp.OCSPRequestBuilder()
         req_builder = req_builder.add_certificate(target_cert, issuer_cert, req.hash_algorithm)
@@ -76,7 +85,10 @@ async def get_response(req: ocsp.OCSPRequest):
         if req.issuer_key_hash != target_req.issuer_key_hash or req.issuer_name_hash != target_req.issuer_name_hash:
             raise WrongIssuerError()
 
-        responder_cert, responder_key = utils.load_cert_and_key(ocsp_serial)
+        r = requests.get(ca_url+"cert/"+ocsp_serial, headers=headers)
+        responder_cert = load_pem_x509_certificate(r.json()["details"].encode())
+        r = requests.get(ca_url+"key/"+ocsp_serial, headers=headers)
+        responder_key = serialization.load_pem_private_key(r.json()["details"].encode(), password=None)
         if target_cert_info.revocation_time:
             revocation_time = datetime.datetime.fromisoformat(target_cert_info.revocation_time)
         else:
