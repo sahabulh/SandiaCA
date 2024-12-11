@@ -14,18 +14,15 @@ from pathlib import Path
 abs_path = str(Path(__file__).absolute().parent)
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 
-from pymongo import MongoClient
-
 import utils
 
-async def get_test_cases(serial: str):
-    chain_serial = await utils.get_chain_serial_for_leaf(leaf_serial=serial)
-    vault_path = "../vault/"
+def get_test_cases():
+    vault_path = "../vault/Any_AllValid_Pass/maeve/"
     class CERT_PATH(StrEnum):
-        V2G_ROOT = vault_path + chain_serial["ROOT"] +".pem"
-        CPO_SUBCA_1 = vault_path + chain_serial["SUBCA1"] +".pem"
-        CPO_SUBCA_2 = vault_path + chain_serial["SUBCA2"] +".pem"
-        SECC_LEAF = vault_path + chain_serial["LEAF"] +".pem"
+        V2G_ROOT = vault_path + "root-V2G-cert.pem"
+        CPO_SUBCA_1 = vault_path + "cpo_sub_ca1.pem"
+        CPO_SUBCA_2 = vault_path + "cpo_sub_ca2.pem"
+        SECC_LEAF = vault_path + "csms_leaf.pem"
     test_certs = [
         (CERT_PATH.CPO_SUBCA_1,CERT_PATH.V2G_ROOT,OCSPCertStatus.GOOD),
         (CERT_PATH.CPO_SUBCA_2,CERT_PATH.CPO_SUBCA_1,OCSPCertStatus.GOOD),
@@ -39,26 +36,7 @@ async def get_test_cases(serial: str):
     ]
     return test_certs
 
-async def load_db():
-    mongodb_client = MongoClient("localhost",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
-    sandia_ca = mongodb_client.sandia_ca
-    await utils.load_db(sandia_ca)
-
-mongodb_client = MongoClient("localhost",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
-sandia_ca = mongodb_client.sandia_ca
-asyncio.run(load_db())
-test_certs = asyncio.run(get_test_cases("219646264740797746216327186006366433638032474847"))
-
-async def unload_db():
-    mongodb_client = MongoClient("localhost",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
-    sandia_ca = mongodb_client.sandia_ca
-    await utils.unload_db(sandia_ca)
-    mongodb_client.close()
-
-@pytest.fixture(autouse=True)
-def run_before_and_after_tests():
-    yield
-    asyncio.run(unload_db())
+test_certs = get_test_cases()
 
 def get_cert_for_path(cert_path):
     with open(cert_path, "rb") as cert_file:
