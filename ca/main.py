@@ -46,7 +46,7 @@ def api_key_auth(x_api_key: str = Depends(X_API_KEY)):
 async def lifespan(app: FastAPI):
     global sandia_ca
     # Connect to MongoDB
-    mongodb_client = MongoClient("localhost",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
+    mongodb_client = MongoClient("mongodb://root:example@mongo",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
     sandia_ca = mongodb_client.sandia_ca
     await utils.load_db(sandia_ca)
     yield

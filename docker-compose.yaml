@@ -1,0 +1,44 @@
+services:
+
+  ca:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ca
+    image: sandia-ca
+    depends_on:
+      - mongo
+    ports:
+    - "8000:8000"
+  
+  ocsp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ocsp
+    image: sandia-ocsp
+    depends_on:
+      - mongo
+      - ca
+    ports:
+    - "8001:8001"
+
+  mongo:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    depends_on:
+      - mongo
+    ports:
+      - 8002:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
+      ME_CONFIG_BASICAUTH: false

@@ -1,0 +1,13 @@
+__pycache__
+.pytest_cache
+.ipynb_checkpoints
+
+vault/*
+
+*.ipynb
+
+test.py
+
+pyproject.toml
+README.md
+LICENSE
