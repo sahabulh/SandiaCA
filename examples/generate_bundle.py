@@ -18,7 +18,7 @@ headers = {
 
 crypto_profile = "secp256r1_sha256"
 ca_url = "http://127.0.0.1:8000/"
-ocsp_url = "http://127.0.0.1:8001/"
+ocsp_url = "http://ocsp:8001/"
 
 class EVerestSaver(ABC):
     cert_path_map = {
@@ -44,8 +44,6 @@ class EVerestSaver(ABC):
             "leaf": {"path": "client/csms_server/", "name": "CSMS_SERVER"}
         },
         "CSMS_CLIENT": {
-            "subca1": {"path": "client/csms/", "name": "CPO_SUB_CA1"},
-            "subca2": {"path": "client/csms/", "name": "CPO_SUB_CA2"},
             "leaf": {"path": "client/csms/", "name": "CSMS_LEAF"}
         }
     }
