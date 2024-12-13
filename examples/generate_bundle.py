@@ -160,34 +160,31 @@ def main():
     leaf_profile = models.Profile(crypto_profile_name=crypto_profile, entity_profile_name="iso2_leaf")
     ocsp_profile = models.Profile(crypto_profile_name=crypto_profile, entity_profile_name="iso2_ocsp")
 
-    rootca_model = models.RootCert(domain="V2G", profile=rootca_profile)
-    subca1_model = models.SubCACert(domain="CPO", profile=subca1_profile, issuer_serial="", tier=1)
-    subca2_model = models.SubCACert(domain="CPO", profile=subca2_profile, issuer_serial="", tier=2)
-    leaf_model = models.LeafCert(domain="CPO", profile=leaf_profile, issuer_serial="", name="SECCLeaf")
-    CPO = models.CertChain(rootca=rootca_model, subca1=subca1_model, subca2=subca2_model, leaf=leaf_model)
+    cpo_rootca_model = models.RootCert(domain="V2G", profile=rootca_profile)
+    cpo_subca1_model = models.SubCACert(domain="CPO", profile=subca1_profile, issuer_serial="", tier=1)
+    cpo_subca2_model = models.SubCACert(domain="CPO", profile=subca2_profile, issuer_serial="", tier=2)
+    cpo_leaf_model = models.LeafCert(domain="CPO", profile=leaf_profile, issuer_serial="", name="SECCLeaf")
+    CPO = models.CertChain(rootca=cpo_rootca_model, subca1=cpo_subca1_model, subca2=cpo_subca2_model, leaf=cpo_leaf_model)
     
-    subca1_model.domain = "MO"
-    subca2_model.domain = "MO"
-    leaf_model.domain = "MO"
-    leaf_model.name = "USCPIC001LTON3"
-    MO = models.CertChain(rootca=None, subca1=subca1_model, subca2=subca2_model, leaf=leaf_model)
+    mo_subca1_model = models.SubCACert(domain="MO", profile=subca1_profile, issuer_serial="", tier=1)
+    mo_subca2_model = models.SubCACert(domain="MO", profile=subca2_profile, issuer_serial="", tier=2)
+    mo_leaf_model = models.LeafCert(domain="MO", profile=leaf_profile, issuer_serial="", name="USCPIC001LTON3")
+    MO = models.CertChain(rootca=None, subca1=mo_subca1_model, subca2=mo_subca2_model, leaf=mo_leaf_model)
     
-    subca1_model.domain = "OEM"
-    subca2_model.domain = "OEM"
-    leaf_model.domain = "OEM"
-    leaf_model.name = "OEMLeaf"
-    OEM = models.CertChain(rootca=None, subca1=subca1_model, subca2=subca2_model, leaf=leaf_model)
+    oem_subca1_model = models.SubCACert(domain="OEM", profile=subca1_profile, issuer_serial="", tier=1)
+    oem_subca2_model = models.SubCACert(domain="OEM", profile=subca2_profile, issuer_serial="", tier=2)
+    oem_leaf_model = models.LeafCert(domain="OEM", profile=leaf_profile, issuer_serial="", name="OEMLeaf")
+    OEM = models.CertChain(rootca=None, subca1=oem_subca1_model, subca2=oem_subca2_model, leaf=oem_leaf_model)
 
-    leaf_model.domain = "CSMS"
-    leaf_model.name = "csms.server"
-    CSMS_SERVER = models.CertChain(rootca=None, subca1=None, subca2=None, leaf=leaf_model)
+    csms_server_leaf_model = models.LeafCert(domain="CSMS", profile=leaf_profile, issuer_serial="", name="host.docker.internal")
+    CSMS_SERVER = models.CertChain(rootca=None, subca1=None, subca2=None, leaf=csms_server_leaf_model)
 
-    leaf_model.domain = "CSMS"
-    leaf_model.name = "csms.client"
-    CSMS_CLIENT = models.CertChain(rootca=None, subca1=None, subca2=None, leaf=leaf_model)
+    csms_client_leaf_model = models.LeafCert(domain="CSMS", profile=leaf_profile, issuer_serial="", name="USCPIC001LTON3")
+    CSMS_CLIENT = models.CertChain(rootca=None, subca1=None, subca2=None, leaf=csms_client_leaf_model)
 
     bundle = models.ISO15118CertBundle(CPO=CPO, MO=MO, OEM=OEM, CSMS_SERVER=CSMS_SERVER, CSMS_CLIENT=CSMS_CLIENT)
     bundleCreate = models.ISO15118CertBundleCreate(bundle=bundle, ca_url = ca_url)
+
     serials = bundleCreate.issue()
 
     ocsp_model = models.OCSPCert(profile=ocsp_profile, issuer_serial="", name="OCSP Responder")
