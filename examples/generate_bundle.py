@@ -18,14 +18,14 @@ headers = {
 
 crypto_profile = "secp256r1_sha256"
 ca_url = "http://127.0.0.1:8000/"
-ocsp_url = "http://ocsp:8001/"
+ocsp_url = "http://host.docker.internal:8001/"
 
 class EVerestSaver(ABC):
     cert_path_map = {
         "CPO": {
             "rootca": {"path": "ca/v2g/", "name": "V2G_ROOT_CA"},
-            "subca1": {"path": "ca/cso/", "name": "CPO_SUB_CA1"},
-            "subca2": {"path": "ca/cso/", "name": "CPO_SUB_CA2"},
+            "subca1": {"path": "ca/csms/", "name": "CPO_SUB_CA1"},
+            "subca2": {"path": "ca/csms/", "name": "CPO_SUB_CA2"},
             "leaf": {"path": "client/cso/", "name": "SECC_LEAF"}
         },
         "MO": {
