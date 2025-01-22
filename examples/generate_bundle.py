@@ -18,7 +18,7 @@ headers = {
 
 crypto_profile = "secp256r1_sha256"
 ca_url = "http://127.0.0.1:8000/"
-ocsp_url = "http://host.docker.internal:8001/"
+ocsp_url = "http://ocsp.server:8001/"
 
 class EVerestSaver(ABC):
     cert_path_map = {
@@ -174,7 +174,7 @@ def main():
     oem_leaf_model = models.LeafCert(domain="OEM", profile=leaf_profile, issuer_serial="", name="OEMLeaf")
     OEM = models.CertChain(rootca=None, subca1=oem_subca1_model, subca2=oem_subca2_model, leaf=oem_leaf_model)
 
-    csms_server_leaf_model = models.LeafCert(domain="CSMS", profile=leaf_profile, issuer_serial="", name="host.docker.internal")
+    csms_server_leaf_model = models.LeafCert(domain="CSMS", profile=leaf_profile, issuer_serial="", name="csms.server")
     CSMS_SERVER = models.CertChain(rootca=None, subca1=None, subca2=None, leaf=csms_server_leaf_model)
 
     csms_client_leaf_model = models.LeafCert(domain="CSMS", profile=leaf_profile, issuer_serial="", name="USCPIC001LTON3")
