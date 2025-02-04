@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import List, Tuple, NamedTuple, Optional
 import requests
 from abc import ABC
+from datetime import datetime
 
 headers = {
     'accept':       'application/json',
@@ -190,3 +191,7 @@ class ISO15118CertBundleCreate(ABC):
             leaf_serial = leaf_create.issue(ca_url = self.ca_url+"leaf")
             res["CSMS_CLIENT"]["leaf"] = leaf_serial
         return res
+    
+class RevokedCert(BaseModel):
+    serial: int
+    revocation_date: datetime

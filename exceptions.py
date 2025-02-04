@@ -25,3 +25,7 @@ class EntryNotFoundError(Exception):
 class IssuerInvalidError(Exception):
     def __init__(self, value = "The issuer certificate is invalid and can't be used to issue new certificates."):
         super().__init__(value)
+
+class ResourceNotFoundError(Exception):
+    def __init__(self, path: str):
+        super().__init__("File does not exist: " + path)

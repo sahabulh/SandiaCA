@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, HTTPException, Response, status
 from fastapi.security import APIKeyHeader
+from fastapi.responses import FileResponse
 
 from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
@@ -14,7 +15,7 @@ from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 from cryptography.x509.oid import NameOID
 
 import utils, models
-from exceptions import EntryNotFoundError
+from exceptions import EntryNotFoundError, ResourceNotFoundError
 
 # Define API keys
 full_access_key = ['iamdev','iamadmin']
@@ -61,6 +62,7 @@ async def create_rootCA_cert(data: models.RootCert, response: Response):
         try:
             certificate, private_key = await utils.build_cert(data=data)
             await utils.save_cert_and_key(cert=certificate, key=private_key, issuer_serial=certificate.serial_number, profile=data.profile)
+            await utils.build_crl([], issuer_cert=certificate, issuer_priv_key=private_key)
             return {"serial": str(certificate.serial_number)}
         except Exception as err:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -75,6 +77,7 @@ async def create_subCA_cert(data: models.SubCACert, response: Response):
         try:
             certificate, private_key = await utils.build_cert(data=data)
             await utils.save_cert_and_key(cert=certificate, key=private_key, issuer_serial=int(data.issuer_serial), profile=data.profile)
+            await utils.build_crl([], issuer_cert=certificate, issuer_priv_key=private_key)
             return {"serial": str(certificate.serial_number)}
         except Exception as err:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -155,8 +158,10 @@ async def revoke_cert_by_serial(serial: str, response: Response):
         try:
             cert_info = await utils.get_cert_info(serial=serial)
             if cert_info.status != 1:
-                revocation_time = datetime.datetime.now(datetime.UTC).isoformat()
+                revocation_date = datetime.datetime.now(datetime.UTC)
+                revocation_time = revocation_date.isoformat()
                 await utils.update(query={"serial": serial}, value={"status": 1, "revocation_time": revocation_time}, collection_name="certs")
+                await utils.add_to_crl(models.RevokedCert(serial=int(serial), revocation_date=revocation_date), issuer=cert_info.issuer)
                 return {"details": "The certificate has been revoked"}
             else:
                 return {"details": "The certificate is already revoked"}
@@ -174,6 +179,7 @@ async def unrevoke_cert_by_serial(serial: str, response: Response):
             cert_info = await utils.get_cert_info(serial=serial)
             if cert_info.status == 1:
                 await utils.update(query={"serial": serial}, value={"status": 0, "revocation_time": None}, collection_name="certs")
+                await utils.remove_from_crl(serial=int(serial), issuer=cert_info.issuer)
                 return {"details": "The certificate has been unrevoked"}
             else:
                 return {"details": "The certificate is already unrevoked"}
@@ -256,6 +262,21 @@ async def update_entity(profile_name: str, profile: models.EntityProfile, respon
         else:
             raise EntryNotFoundError(id_type="name", value=profile_name)
     except EntryNotFoundError as err:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"error": str(err)}
+    except Exception as err:
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"error": str(err)}
+    
+@app.get("/crl/{filename}", summary="Download CRL file", tags=["Downloads"])
+async def download_crl(filename: str, response: Response):
+    try:
+        file = Path("../crl/" + filename)
+        if file.is_file():
+            return FileResponse(file)
+        else:
+            raise ResourceNotFoundError(path=filename)
+    except ResourceNotFoundError as err:
         response.status_code = status.HTTP_404_NOT_FOUND
         return {"error": str(err)}
     except Exception as err:

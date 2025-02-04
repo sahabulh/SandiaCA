@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed448
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
-from typing import Union, Tuple
+from typing import Union, Tuple, List
 
 from pathlib import Path
 abs_path = str(Path(__file__).absolute().parent)
@@ -182,6 +182,11 @@ async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.Elli
             builder = builder.subject_name(get_name(name=data.name, domain=data.domain))
         builder = builder.issuer_name(issuer_cert.subject)
         builder = builder.add_extension(x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(issuer_ski.value), critical=False)
+        builder = builder.add_extension(x509.CRLDistributionPoints([
+            x509.DistributionPoint(
+                full_name=[x509.UniformResourceIdentifier("http://localhost:8000/crl/"+data.issuer_serial+".crl")],
+                relative_name=None, reasons=None, crl_issuer=None
+            )]), critical=False)
 
     extended_key_usage = []
     if entity_profile.extended_key_usage:
@@ -242,6 +247,69 @@ async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.Elli
         elif crypto_profile.signature_hash == "sha512":
             certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA512())
     return certificate, private_key
+
+async def build_crl(revocation_list: List[models.RevokedCert],
+                    issuer_cert: x509.Certificate,
+                    issuer_priv_key: Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]):
+    now = datetime.datetime.now(datetime.UTC)
+    one_day = datetime.timedelta(1, 0, 0)
+    builder = x509.CertificateRevocationListBuilder()
+    builder = builder.issuer_name(issuer_cert.subject)
+    builder = builder.last_update(now)
+    builder = builder.next_update(now + one_day)
+
+    for revoked_cert_info in revocation_list:
+        revoked_cert = x509.RevokedCertificateBuilder().serial_number(
+            revoked_cert_info.serial
+        ).revocation_date(
+            revoked_cert_info.revocation_date
+        ).build()
+        builder = builder.add_revoked_certificate(revoked_cert)
+    
+    crl = builder.sign(
+        private_key=issuer_priv_key, algorithm=hashes.SHA256(),
+    )
+
+    if not os.path.exists(abs_path+"/crl/"):
+        os.makedirs(abs_path+"/crl/", exist_ok=True)
+
+    crl_data = crl.public_bytes(encoding=serialization.Encoding.PEM).decode('utf-8')
+    with open(abs_path+"/crl/"+str(issuer_cert.serial_number)+".crl","w") as file:
+        file.write(crl_data)
+
+async def add_to_crl(revoked_cert: models.RevokedCert, issuer: str):
+    with open(abs_path+"/crl/"+str(issuer)+".crl","r") as file:
+        crl_data = file.read().encode()
+        crl = x509.load_pem_x509_crl(crl_data)
+    
+    revocation_list = []
+    for old_revoked_cert in crl:
+        revocation_list.append(models.RevokedCert(serial=old_revoked_cert.serial_number,
+                                                  revocation_date=old_revoked_cert.revocation_date_utc))
+    
+    revocation_list.append(revoked_cert)
+
+    issuer_cert, issuer_priv_key = load_cert_and_key(serial=issuer)
+
+    await build_crl(revocation_list, issuer_cert, issuer_priv_key)
+
+async def remove_from_crl(serial: int, issuer: str):
+    with open(abs_path+"/crl/"+str(issuer)+".crl","r") as file:
+        crl_data = file.read().encode()
+        crl = x509.load_pem_x509_crl(crl_data)
+    
+    revocation_list = []
+    for old_revoked_cert in crl:
+        print(old_revoked_cert.serial_number, end = " ")
+        print(serial, end = " ")
+        print(old_revoked_cert.serial_number == serial)
+        if old_revoked_cert.serial_number != serial:
+            revocation_list.append(models.RevokedCert(serial=old_revoked_cert.serial_number,
+                                                      revocation_date=old_revoked_cert.revocation_date_utc))
+
+    issuer_cert, issuer_priv_key = load_cert_and_key(serial=issuer)
+
+    await build_crl(revocation_list, issuer_cert, issuer_priv_key)
 
 async def load_db(db: Database):
     global sandia_ca
