@@ -16,7 +16,7 @@ from pymongo import ReturnDocument
 from pymongo.database import Database
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 
-import models
+import models.models as models
 from exceptions import DBConnectionError, EntryNotFoundError, IssuerInvalidError
 
 # Define the database variable
@@ -266,9 +266,11 @@ async def build_crl(revocation_list: List[models.RevokedCert],
         ).build()
         builder = builder.add_revoked_certificate(revoked_cert)
     
-    crl = builder.sign(
-        private_key=issuer_priv_key, algorithm=hashes.SHA256(),
-    )
+    #TODO: Get hash from private key and use the same hash for signing CRL
+    if isinstance(issuer_priv_key, ed448.Ed448PrivateKey):
+        crl = builder.sign(private_key=issuer_priv_key, algorithm=None)
+    else:
+        crl = builder.sign(private_key=issuer_priv_key, algorithm=hashes.SHA256())
 
     if not os.path.exists(abs_path+"/crl/"):
         os.makedirs(abs_path+"/crl/", exist_ok=True)

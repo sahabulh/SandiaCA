@@ -3,7 +3,7 @@ services:
   ca:
     build:
       context: .
-      dockerfile: dockerfile
+      dockerfile: Dockerfile
       target: ca
     image: sandia-ca
     depends_on:
@@ -14,7 +14,7 @@ services:
   ocsp:
     build:
       context: .
-      dockerfile: dockerfile
+      dockerfile: Dockerfile
       target: ocsp
     image: sandia-ocsp
     depends_on:

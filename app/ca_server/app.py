@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-import sys, os, datetime
+import os, datetime
 from pathlib import Path
-sys.path.append(str(Path(__file__).absolute().parent.parent))
 
 from contextlib import asynccontextmanager
 
@@ -14,7 +13,8 @@ from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 
 from cryptography.x509.oid import NameOID
 
-import utils, models
+import utils
+import models.models as models
 from exceptions import EntryNotFoundError, ResourceNotFoundError
 
 # Define API keys
@@ -136,6 +136,15 @@ async def list_certs():
 async def get_cert_by_serial(serial: str, response: Response):
     try:
         return {"details": utils.load_cert_as_string(serial)}
+    except Exception as err:
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"error": str(err)}
+
+@app.get("/issuer/{serial}", summary="Get serial number of certificate issuer", dependencies=[Depends(api_key_auth)], tags=["Certificate"])
+async def get_issuer_by_serial(serial: str, response: Response):
+    try:
+        cert_info = await utils.get_cert_info(serial=serial)
+        return {"details": cert_info.issuer}
     except Exception as err:
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return {"error": str(err)}

@@ -7,7 +7,7 @@ sys.path.append(abs_path)
 
 from typing import Tuple
 
-import models
+import app.models.models as models
 from generate_profiles import create_crypto_profile, create_entity_profiles
 
 headers = {

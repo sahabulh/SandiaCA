@@ -70,6 +70,8 @@ async def get_response(req: ocsp.OCSPRequest):
             issuer_serial = target_cert_info.issuer
             issuer_cert_info = await utils.get_cert_info(serial=issuer_serial)
             ocsp_serial = issuer_cert_info.responder
+            if not ocsp_serial:
+                raise ResponseNotAllowedError("Information about the responder is not available.")
         except EntryNotFoundError:
             raise ResponseNotAllowedError("Information not available in the database. This might mean that the responder is not authorized to send a response for this certificate.")
         

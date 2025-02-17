@@ -1,7 +1,8 @@
 __pycache__
+vault
+
 .pytest_cache
 .ipynb_checkpoints
-vault/*
 
 *.ipynb
 
