@@ -12,15 +12,15 @@ from typing import Union, Tuple, List
 from pathlib import Path
 abs_path = str(Path(__file__).absolute().parent)
 
-from pymongo import ReturnDocument
+from pymongo import MongoClient, ReturnDocument
 from pymongo.database import Database
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 
+mongodb_client = MongoClient("mongodb://root:example@mongo",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
+sandia_ca = mongodb_client.sandia_ca
+
 import models.models as models
 from exceptions import DBConnectionError, EntryNotFoundError, IssuerInvalidError
-
-# Define the database variable
-sandia_ca = None
 
 def get_name(name: str, domain: str) -> x509.Name:
     return x509.Name([

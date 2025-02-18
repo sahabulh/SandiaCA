@@ -8,8 +8,6 @@ from cryptography.hazmat.primitives.hashes import SHA1, SHA256
 from cryptography.x509.ocsp import OCSPResponseStatus, OCSPCertStatus
 from cryptography.x509.oid import ExtensionOID, AuthorityInformationAccessOID
 
-from pymongo import MongoClient
-
 from pathlib import Path
 abs_path = str(Path(__file__).absolute().parent)
 sys.path.append(str(Path(__file__).absolute().parent.parent))
@@ -29,12 +27,11 @@ def get_test_cases():
         if cert["name"] == "SECCLeaf":
             SECC_LEAF = load_cert(cert["serial"])
 
-    if SECC_LEAF:
-        r = requests.get('http://127.0.0.1:8000/issuer/'+str(SECC_LEAF.serial_number), headers=headers)
-        CPO_SUBCA_2 = load_cert(r.json()["details"])
-    else:
+    if not SECC_LEAF:
         exit()
 
+    r = requests.get('http://127.0.0.1:8000/issuer/'+str(SECC_LEAF.serial_number), headers=headers)
+    CPO_SUBCA_2 = load_cert(r.json()["details"])
     r = requests.get('http://127.0.0.1:8000/issuer/'+str(CPO_SUBCA_2.serial_number), headers=headers)
     CPO_SUBCA_1 = load_cert(r.json()["details"])
     r = requests.get('http://127.0.0.1:8000/issuer/'+str(CPO_SUBCA_1.serial_number), headers=headers)
@@ -112,4 +109,3 @@ def test_ocsp_sha1(test_cert):
 def test_ocsp_sha256(test_cert):
     cert, issuer, expected_status = test_cert
     assert get_cert_status_for_path(cert,issuer,SHA256()) == expected_status
-
