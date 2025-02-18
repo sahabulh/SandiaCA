@@ -12,12 +12,9 @@ from typing import Union, Tuple, List
 from pathlib import Path
 abs_path = str(Path(__file__).absolute().parent)
 
-from pymongo import MongoClient, ReturnDocument
-from pymongo.database import Database
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 
-mongodb_client = MongoClient("mongodb://root:example@mongo",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
-sandia_ca = mongodb_client.sandia_ca
+from database.db import insert, find
 
 import models.models as models
 from exceptions import DBConnectionError, EntryNotFoundError, IssuerInvalidError
@@ -43,19 +40,18 @@ async def save_cert_and_key(cert: x509.Certificate, key: Union[ec.EllipticCurveP
     else:
         key_data = key.private_bytes(encoding=serialization.Encoding.PEM,format=serialization.PrivateFormat.PKCS8,encryption_algorithm=serialization.NoEncryption()).decode('utf-8')
     cert_info = models.CertInfo(serial=str(cert.serial_number), key=key_data, issuer=str(issuer_serial), status=0, profile=profile)
-    certs = sandia_ca.certs
     post = cert_info.__dict__
     post["profile"] = post["profile"].__dict__
     try:
-        post_id = certs.insert_one(post).inserted_id
+        post_id = await insert(post, "certs")
         del post["_id"]
         return {"entry_id": str(post_id), "details": post}
     except (ServerSelectionTimeoutError, ConnectionFailure):
         raise DBConnectionError()
 
-def load_cert_and_key(serial: str) -> Tuple[x509.Certificate, Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]]:
+async def load_cert_and_key(serial: str) -> Tuple[x509.Certificate, Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]]:
     cert = load_cert(serial)
-    key = load_key(serial)
+    key = await load_key(serial)
     return cert, key
 
 def load_cert(serial: str) -> x509.Certificate:
@@ -63,8 +59,8 @@ def load_cert(serial: str) -> x509.Certificate:
     cert = load_pem_x509_certificate(cert_data)
     return cert
 
-def load_key(serial: str) -> Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]:
-    key_data = load_key_as_string(serial).encode()
+async def load_key(serial: str) -> Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]:
+    key_data = await load_key_as_string(serial).encode()
     key = load_pem_private_key(key_data, password=None)
     return key
 
@@ -73,11 +69,10 @@ def load_cert_as_string(serial: str) -> str:
         cert = file.read()
     return cert
 
-def load_key_as_string(serial: str) -> str:
-    certs = sandia_ca.certs
+async def load_key_as_string(serial: str) -> str:
     query = {"serial": serial}
     try:
-        cert_info = certs.find_one(query)
+        cert_info = await find(query, "certs")
         if cert_info:
             key = cert_info["key"]
         else:
@@ -87,13 +82,9 @@ def load_key_as_string(serial: str) -> str:
     return key
 
 async def get_profile(type: str, name: str) -> dict:
-    if type == "crypto":
-        profiles = sandia_ca.crypto_profiles
-    elif type == "entity":
-        profiles = sandia_ca.entity_profiles
     query = {"name": name}
     try:
-        profile = profiles.find_one(query, projection={'_id': False})
+        profile = await find(query, type+"_profiles")
         if profile:
             return profile
         else:
@@ -112,10 +103,9 @@ async def get_profiles(profile: models.Profile) -> Tuple[Union[models.CryptoProf
     return crypto_profile, entity_profile
 
 async def get_cert_info(serial: str) -> models.CertInfo:
-    certs = sandia_ca.certs
     query = {"serial": serial}
     try:
-        cert_info = certs.find_one(query, projection={'_id': False})
+        cert_info = await find(query, "certs")
         if cert_info:
             return models.CertInfo(**cert_info)
         else:
@@ -135,10 +125,6 @@ async def get_chain_serial_for_leaf(leaf_serial: str) -> dict:
         "SUBCA2": subca2_cert_info.serial,
         "LEAF": leaf_serial
     }
-    
-async def update(query: dict, value: dict, collection_name: str):
-    collection = sandia_ca[collection_name]
-    return collection.find_one_and_update(query, {'$set': value}, projection={'_id': False}, return_document = ReturnDocument.AFTER)
 
 async def generate_private_key(key_algorithm: str) -> Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]:
     if key_algorithm == "secp256r1":
@@ -291,7 +277,7 @@ async def add_to_crl(revoked_cert: models.RevokedCert, issuer: str):
     
     revocation_list.append(revoked_cert)
 
-    issuer_cert, issuer_priv_key = load_cert_and_key(serial=issuer)
+    issuer_cert, issuer_priv_key = await load_cert_and_key(serial=issuer)
 
     await build_crl(revocation_list, issuer_cert, issuer_priv_key)
 
@@ -309,14 +295,6 @@ async def remove_from_crl(serial: int, issuer: str):
             revocation_list.append(models.RevokedCert(serial=old_revoked_cert.serial_number,
                                                       revocation_date=old_revoked_cert.revocation_date_utc))
 
-    issuer_cert, issuer_priv_key = load_cert_and_key(serial=issuer)
+    issuer_cert, issuer_priv_key = await load_cert_and_key(serial=issuer)
 
     await build_crl(revocation_list, issuer_cert, issuer_priv_key)
-
-async def load_db(db: Database):
-    global sandia_ca
-    sandia_ca = db
-
-async def unload_db(db: Database):
-    global sandia_ca
-    sandia_ca = None

@@ -6,20 +6,17 @@ from ca_server.auth import api_key_auth
 
 from exceptions import EntryNotFoundError
 
-from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 
-mongodb_client = MongoClient("mongodb://root:example@mongo",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
-sandia_ca = mongodb_client.sandia_ca
+from database.db import insert, update
 
 router = APIRouter()
 
 @router.post("/profile/crypto", summary="Create a cryptographic profile", tags=["Profile"])
 async def create_crypto(profile: models.CryptoProfileCreate, response: Response, role: str = Depends(api_key_auth)):
-    profiles = sandia_ca.crypto_profiles
     post = {"name": profile.name, "key_algorithm": profile.key_algorithm, "signature_hash": profile.signature_hash}
     try:
-        post_id = profiles.insert_one(post).inserted_id
+        post_id = await insert(post, "crypto_profiles")
         del post["_id"]
         return {"entry_id": str(post_id), "details": post}
     except (ServerSelectionTimeoutError, ConnectionFailure):
@@ -41,7 +38,7 @@ async def get_crypto(profile_name: str, response: Response, role: str = Depends(
 async def update_crypto(profile_name: str, profile: models.CryptoProfile, response: Response, role: str = Depends(api_key_auth)):
     try:
         profile_dict = profile.model_dump(exclude_unset=True)
-        updated_doc = await utils.update(query={"name": profile_name}, value=profile_dict, collection_name="crypto_profiles")
+        updated_doc = await update(query={"name": profile_name}, value=profile_dict, collection_name="crypto_profiles")
         if updated_doc:
             return {"details": updated_doc}
         else:
@@ -55,10 +52,9 @@ async def update_crypto(profile_name: str, profile: models.CryptoProfile, respon
     
 @router.post("/profile/entity", summary="Create an entity profile", tags=["Profile"])
 async def create_entity(profile: models.EntityProfileCreate, response: Response, role: str = Depends(api_key_auth)):
-    profiles = sandia_ca.entity_profiles
     post = profile.__dict__
     try:
-        post_id = profiles.insert_one(post).inserted_id
+        post_id = await insert(post, "entity_profiles")
         del post["_id"]
         return {"entry_id": str(post_id), "details": post}
     except (ServerSelectionTimeoutError, ConnectionFailure):
@@ -80,7 +76,7 @@ async def get_entity(profile_name: str, response: Response, role: str = Depends(
 async def update_entity(profile_name: str, profile: models.EntityProfile, response: Response, role: str = Depends(api_key_auth)):
     try:
         profile_dict = profile.model_dump(exclude_unset=True)
-        updated_doc = await utils.update(query={"name": profile_name}, value=profile_dict, collection_name="entity_profiles")
+        updated_doc = await update(query={"name": profile_name}, value=profile_dict, collection_name="entity_profiles")
         if updated_doc:
             return {"details": updated_doc}
         else:

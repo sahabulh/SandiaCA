@@ -10,15 +10,9 @@ from cryptography.x509.ocsp import load_der_ocsp_request, OCSPCertStatus, OCSPRe
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from contextlib import asynccontextmanager
-
-from pymongo import MongoClient
-
 import utils
+from database.db import connect_and_init_db, close_db
 from exceptions import SHA1Error, WrongIssuerError, ResponseNotAllowedError, EntryNotFoundError
-
-# Define the database variable
-sandia_ca = None
 
 ca_url = "http://ca:8000/"
 headers = {
@@ -27,18 +21,10 @@ headers = {
     'Content-Type': 'application/json',
 }
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global sandia_ca
-    # Connect to MongoDB
-    mongodb_client = MongoClient("mongodb://root:example@mongo",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
-    sandia_ca = mongodb_client.sandia_ca
-    await utils.load_db(sandia_ca)
-    yield
-    # Disconnect from MongoDB
-    mongodb_client.close()
+app = FastAPI()
 
-app = FastAPI(lifespan=lifespan)
+app.add_event_handler("startup", connect_and_init_db)
+app.add_event_handler("shutdown", close_db)
 
 @app.post("/")
 async def post_method_process(request: Request):

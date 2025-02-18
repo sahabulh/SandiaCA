@@ -1,4 +1,4 @@
-import json, requests, asyncio, sys, pytest
+import json, requests, sys
 
 from cryptography import x509
 from cryptography.x509 import load_pem_x509_certificate
@@ -7,14 +7,10 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from typing import Union, Tuple
 
-from pymongo import MongoClient
-
 from pathlib import Path
 abs_path = str(Path(__file__).absolute().parent.parent)
 sys.path.append(abs_path)
 sys.path.append(abs_path+"\\app")
-
-import app.utils as utils
 
 headers = {
     'accept':       'application/json',
@@ -50,23 +46,6 @@ test_cases_error = [
 test_cases_ed_good = [
     ("Ed448_Ed448","ed448",ed448.Ed448PrivateKey)
 ]
-
-async def load_db():
-    mongodb_client = MongoClient("localhost",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
-    sandia_ca = mongodb_client.sandia_ca
-    await utils.load_db(sandia_ca)
-
-async def unload_db():
-    mongodb_client = MongoClient("localhost",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
-    sandia_ca = mongodb_client.sandia_ca
-    await utils.unload_db(sandia_ca)
-    # sandia_ca.certs.drop()
-
-@pytest.fixture(autouse=True)
-def run_before_and_after_tests():
-    asyncio.run(load_db())
-    yield
-    asyncio.run(unload_db())
 
 # Define the pytest_generate_tests hook to generate test cases
 def pytest_generate_tests(metafunc):

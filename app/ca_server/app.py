@@ -11,11 +11,16 @@ from routes.certificates import router as cert_router
 from routes.revocation import router as revoke_router
 from routes.profiles import router as profile_router
 
+from database.db import connect_and_init_db, close_db
+
 app = FastAPI()
 
 app.include_router(cert_router)
 app.include_router(revoke_router)
 app.include_router(profile_router)
+
+app.add_event_handler("startup", connect_and_init_db)
+app.add_event_handler("shutdown", close_db)
     
 @app.get("/crl/{filename}", summary="Download CRL file", tags=["Downloads"])
 async def download_crl(filename: str, response: Response, role: str = Depends(api_key_auth)):

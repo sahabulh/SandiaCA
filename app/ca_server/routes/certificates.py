@@ -9,6 +9,8 @@ import utils
 import models.models as models
 from ca_server.auth import api_key_auth
 
+from database.db import update
+
 router = APIRouter()
 
 @router.post("/rootca", summary="Create RootCA certificates", tags=["Certificate"])
@@ -47,7 +49,7 @@ async def create_ocsp_signer_cert(data: models.OCSPCert, response: Response, rol
         try:
             certificate, private_key = await utils.build_cert(data=data)
             await utils.save_cert_and_key(cert=certificate, key=private_key, issuer_serial=int(data.issuer_serial), profile=data.profile)
-            await utils.update(query={"serial": data.issuer_serial}, value={"responder": str(certificate.serial_number)}, collection_name="certs")
+            await update(query={"serial": data.issuer_serial}, value={"responder": str(certificate.serial_number)}, collection_name="certs")
             return {"serial": str(certificate.serial_number)}
         except Exception as err:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -108,7 +110,7 @@ async def get_issuer_by_serial(serial: str, response: Response, role: str = Depe
 async def get_key_by_serial(serial: str, response: Response, role: str = Depends(api_key_auth)):
     if role == "full":
         try:
-            return {"details": utils.load_key_as_string(serial)}
+            return {"details": await utils.load_key_as_string(serial)}
         except Exception as err:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return {"error": str(err)}
