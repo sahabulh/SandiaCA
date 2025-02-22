@@ -19,14 +19,18 @@ from database.db import insert, find
 import models.models as models
 from exceptions import DBConnectionError, EntryNotFoundError, IssuerInvalidError
 
+from ca_server.config import Config
+
 def get_name(name: str, domain: str) -> x509.Name:
+    config = Config()
+    config = config.load()
     return x509.Name([
             x509.NameAttribute(NameOID.COMMON_NAME, name),
-            x509.NameAttribute(NameOID.COUNTRY_NAME, 'US'),
+            x509.NameAttribute(NameOID.COUNTRY_NAME, config.country_code),
             x509.NameAttribute(NameOID.DOMAIN_COMPONENT, domain),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, 'Sandia National Labs'),
-            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, 'Electric Vehicles'),
-            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, 'New Mexico'),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, config.organization_name),
+            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, config.organizational_unit_name),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, config.state_or_province_name),
         ])
 
 async def save_cert_and_key(cert: x509.Certificate, key: Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey], issuer_serial: int, profile: models.Profile):
