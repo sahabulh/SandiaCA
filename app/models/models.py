@@ -34,6 +34,7 @@ class EntityProfile(BaseModel):
     basic_constraints: Optional[BasicConstraints] = None
     validity: Optional[Validity] = None
     ocsp_url: Optional[str] = None
+    crl_url: Optional[str] = None
 
 class CryptoProfileCreate(CryptoProfile):
     name: str
@@ -47,6 +48,7 @@ class EntityProfileCreate(EntityProfile):
     basic_constraints: BasicConstraints = BasicConstraints()
     validity: Validity = Validity()
     ocsp_url: Optional[str] = None
+    crl_url: Optional[str] = None
 
 class Profile(BaseModel):
     crypto_profile_name: Optional[str] = None

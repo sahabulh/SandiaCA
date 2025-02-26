@@ -21,7 +21,8 @@ def create_entity_profiles(ocsp_url: str, ca_url: str, headers: dict):
         "validity": [
             40, 0, 0
         ],
-        "ocsp_url": None
+        "ocsp_url": None,
+        "crl_url": None
     }
     r = requests.post(ca_url+"profile/entity", headers=headers, json=data)
     print(r.json())
@@ -37,7 +38,8 @@ def create_entity_profiles(ocsp_url: str, ca_url: str, headers: dict):
         "validity": [
             4, 0, 0
         ],
-        "ocsp_url": ocsp_url
+        "ocsp_url": ocsp_url,
+        "crl_url": ca_url
     }
     r = requests.post(ca_url+"profile/entity", headers=headers, json=data)
     print(r.json())
@@ -53,7 +55,8 @@ def create_entity_profiles(ocsp_url: str, ca_url: str, headers: dict):
         "validity": [
             2, 0, 0
         ],
-        "ocsp_url": ocsp_url
+        "ocsp_url": ocsp_url,
+        "crl_url": ca_url
     }
     r = requests.post(ca_url+"profile/entity", headers=headers, json=data)
     print(r.json())
@@ -69,7 +72,8 @@ def create_entity_profiles(ocsp_url: str, ca_url: str, headers: dict):
         "validity": [
             1, 0, 0
         ],
-        "ocsp_url": ocsp_url
+        "ocsp_url": ocsp_url,
+        "crl_url": ca_url
     }
     r = requests.post(ca_url+"profile/entity", headers=headers, json=data)
     print(r.json())
@@ -88,7 +92,8 @@ def create_entity_profiles(ocsp_url: str, ca_url: str, headers: dict):
         "validity": [
             1, 0, 0
         ],
-        "ocsp_url": None
+        "ocsp_url": None,
+        "crl_url": None
     }
     r = requests.post(ca_url+"profile/entity", headers=headers, json=data)
     print(r.json())

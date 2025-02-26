@@ -23,10 +23,10 @@ app.add_event_handler("startup", connect_and_init_db)
 app.add_event_handler("shutdown", close_db)
     
 @app.get("/crl/{filename}", summary="Download CRL file", tags=["Downloads"])
-async def download_crl(filename: str, response: Response, role: str = Depends(api_key_auth)):
+async def download_crl(filename: str, response: Response):
     try:
-        print(str(Path(__file__).absolute()))
-        file = Path("../crl/" + filename)
+        base_path = str(Path(__file__).absolute().parent.parent)
+        file = Path(base_path + "/crl/" + filename)
         if file.is_file():
             return FileResponse(file)
         else:

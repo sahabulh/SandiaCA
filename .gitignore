@@ -7,3 +7,5 @@ vault
 *.ipynb
 
 test.py
+
+.env

@@ -32,11 +32,11 @@ test_cases_crypto_profile = [
 ]
 
 test_cases_entity_profile = [
-    ("iso2_rootca", [False, False, False, False, False, True, True, False, False], None, [True, None], [40, 0, 0], None),
-    ("iso2_subca1", [False, False, False, False, False, True, True, False, False], None, [True, 1], [4, 0, 0], ocsp_url),
-    ("iso2_subca2", [False, False, False, False, False, True, True, False, False], None, [True, 0], [2, 0, 0], ocsp_url),
-    ("iso2_leaf", [True, False, False, False, False, False, False, False, False], None, [False, None], [1, 0, 0], ocsp_url),
-    ("iso2_ocsp", [False, False, False, False, False, False, False, False, False], ["ocsp_signing"], [False, None], [1, 0, 0], None)
+    ("iso2_rootca", [False, False, False, False, False, True, True, False, False], None, [True, None], [40, 0, 0], None, None),
+    ("iso2_subca1", [False, False, False, False, False, True, True, False, False], None, [True, 1], [4, 0, 0], ocsp_url, ca_url),
+    ("iso2_subca2", [False, False, False, False, False, True, True, False, False], None, [True, 0], [2, 0, 0], ocsp_url, ca_url),
+    ("iso2_leaf", [True, False, False, False, False, False, False, False, False], None, [False, None], [1, 0, 0], ocsp_url, ca_url),
+    ("iso2_ocsp", [False, False, False, False, False, False, False, False, False], ["ocsp_signing"], [False, None], [1, 0, 0], None, None)
 ]
 
 test_cases_ec_good = [
@@ -87,14 +87,15 @@ def test_create_crypto_profile(test_case_crypto_profile):
     assert res_data["signature_hash"] == hash
 
 def test_create_entity_profile(test_case_entity_profile):
-    profile, key_usage, extended_key_usage, basic_constraints, validity, ocsp_url = test_case_entity_profile
+    profile, key_usage, extended_key_usage, basic_constraints, validity, ocsp_url, crl_url = test_case_entity_profile
     data = {
         "name": profile,
         "key_usage": key_usage,
         "basic_constraints": basic_constraints,
         "extended_key_usage": extended_key_usage,
         "validity": validity,
-        "ocsp_url": ocsp_url
+        "ocsp_url": ocsp_url,
+        "crl_url": crl_url
     }
     if extended_key_usage == None:
         del data["extended_key_usage"]
@@ -107,6 +108,7 @@ def test_create_entity_profile(test_case_entity_profile):
     assert res_data["basic_constraints"] == basic_constraints
     assert res_data["validity"] == validity
     assert res_data["ocsp_url"] == ocsp_url
+    assert res_data["crl_url"] == crl_url
     if extended_key_usage:
         res_data["extended_key_usage"] == extended_key_usage
     

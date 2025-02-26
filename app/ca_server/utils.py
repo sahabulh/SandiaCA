@@ -65,8 +65,8 @@ def load_cert(serial: str) -> x509.Certificate:
     return cert
 
 async def load_key(serial: str) -> Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]:
-    key_data = await load_key_as_string(serial).encode()
-    key = load_pem_private_key(key_data, password=None)
+    key_data = await load_key_as_string(serial)
+    key = load_pem_private_key(key_data.encode(), password=None)
     return key
 
 def load_cert_as_string(serial: str) -> str:
@@ -130,11 +130,6 @@ async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.Elli
             builder = builder.subject_name(get_name(name=data.name, domain=data.domain))
         builder = builder.issuer_name(issuer_cert.subject)
         builder = builder.add_extension(x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(issuer_ski.value), critical=False)
-        builder = builder.add_extension(x509.CRLDistributionPoints([
-            x509.DistributionPoint(
-                full_name=[x509.UniformResourceIdentifier("http://localhost:8000/crl/"+data.issuer_serial+".crl")],
-                relative_name=None, reasons=None, crl_issuer=None
-            )]), critical=False)
 
     extended_key_usage = []
     if entity_profile.extended_key_usage:
@@ -152,6 +147,14 @@ async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.Elli
             x509.AccessDescription(
                 AuthorityInformationAccessOID.OCSP,
                 x509.UniformResourceIdentifier(entity_profile.ocsp_url)
+            )
+        ]), critical=False)
+
+    if entity_profile.crl_url:
+        builder = builder.add_extension(x509.CRLDistributionPoints([
+            x509.DistributionPoint(
+                full_name=[x509.UniformResourceIdentifier(entity_profile.crl_url+"/crl/"+data.issuer_serial+".crl")],
+                relative_name=None, reasons=None, crl_issuer=None
             )
         ]), critical=False)
     

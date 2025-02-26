@@ -114,3 +114,14 @@ def test_ocsp_sha1(test_cert):
 def test_ocsp_sha256(test_cert):
     cert, issuer, expected_status = test_cert
     assert get_cert_status_for_path(cert,issuer,SHA256()) == expected_status
+
+def test_check_ocsp_revoked():
+    cert, issuer, _ = test_certs[2]
+    r = requests.post(ca_url+"/revoke/"+str(cert.serial_number), headers=headers)
+    print(r.json())
+    assert get_cert_status_for_path(cert,issuer,SHA256()) == OCSPCertStatus.REVOKED
+    assert get_cert_status_for_path(cert,issuer,SHA1()) == OCSPCertStatus.REVOKED
+    r = requests.post(ca_url+"/unrevoke/"+str(cert.serial_number), headers=headers)
+    print(r.json())
+    assert get_cert_status_for_path(cert,issuer,SHA256()) == OCSPCertStatus.GOOD
+    assert get_cert_status_for_path(cert,issuer,SHA1()) == OCSPCertStatus.GOOD
