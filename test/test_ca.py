@@ -12,6 +12,9 @@ abs_path = str(Path(__file__).absolute().parent.parent)
 sys.path.append(abs_path)
 sys.path.append(abs_path+"\\app")
 
+ca_url = "http://127.0.0.1:9100"
+ocsp_url = "http://127.0.0.1:9101"
+
 headers = {
     'accept':       'application/json',
     'X-API-KEY':    'iamadmin',
@@ -27,9 +30,9 @@ test_cases_crypto_profile = [
 
 test_cases_entity_profile = [
     ("iso2_rootca", [False, False, False, False, False, True, True, False, False], None, [True, None], [40, 0, 0], None),
-    ("iso2_subca1", [False, False, False, False, False, True, True, False, False], None, [True, 1], [4, 0, 0], "http://127.0.0.1:8001/"),
-    ("iso2_subca2", [False, False, False, False, False, True, True, False, False], None, [True, 0], [2, 0, 0], "http://127.0.0.1:8001/"),
-    ("iso2_leaf", [True, False, False, False, False, False, False, False, False], None, [False, None], [1, 0, 0], "http://127.0.0.1:8001/"),
+    ("iso2_subca1", [False, False, False, False, False, True, True, False, False], None, [True, 1], [4, 0, 0], ocsp_url),
+    ("iso2_subca2", [False, False, False, False, False, True, True, False, False], None, [True, 0], [2, 0, 0], ocsp_url),
+    ("iso2_leaf", [True, False, False, False, False, False, False, False, False], None, [False, None], [1, 0, 0], ocsp_url),
     ("iso2_ocsp", [False, False, False, False, False, False, False, False, False], ["ocsp_signing"], [False, None], [1, 0, 0], None)
 ]
 
@@ -72,9 +75,9 @@ def test_create_crypto_profile(test_case_crypto_profile):
         "key_algorithm": curve,
         "signature_hash": hash
     }
-    r = requests.post("http://127.0.0.1:8000/profile/crypto", headers=headers, json=data)
+    r = requests.post(ca_url+"/profile/crypto", headers=headers, json=data)
     assert "error" not in r.json()
-    r = requests.get("http://127.0.0.1:8000/profile/crypto/"+profile, headers=headers)
+    r = requests.get(ca_url+"/profile/crypto/"+profile, headers=headers)
     assert "error" not in r.json()
     res_data = r.json()
     assert res_data["key_algorithm"] == curve
@@ -92,9 +95,9 @@ def test_create_entity_profile(test_case_entity_profile):
     }
     if extended_key_usage == None:
         del data["extended_key_usage"]
-    r = requests.post("http://127.0.0.1:8000/profile/entity", headers=headers, json=data)
+    r = requests.post(ca_url+"/profile/entity", headers=headers, json=data)
     assert "error" not in r.json()
-    r = requests.get("http://127.0.0.1:8000/profile/entity/"+profile, headers=headers)
+    r = requests.get(ca_url+"/profile/entity/"+profile, headers=headers)
     assert "error" not in r.json()
     res_data = r.json()
     assert res_data["key_usage"] == key_usage
@@ -198,11 +201,11 @@ def load_key(serial: str) -> Union[ec.EllipticCurvePrivateKey, ed448.Ed448Privat
     return key
 
 def load_cert_as_string(serial: str) -> str:
-    r = requests.get('http://127.0.0.1:8000/cert/'+serial, headers=headers)
+    r = requests.get(ca_url+"/cert/"+serial, headers=headers)
     return r.json()["details"]
 
 def load_key_as_string(serial: str) -> str:
-    r = requests.get('http://127.0.0.1:8000/key/'+serial, headers=headers)
+    r = requests.get(ca_url+"/key/"+serial, headers=headers)
     return r.json()["details"]
 
 def issue_root_cert(profile: str) -> dict:
@@ -213,7 +216,7 @@ def issue_root_cert(profile: str) -> dict:
             "entity_profile_name": "iso2_rootca"
         }
     }
-    r = requests.post('http://127.0.0.1:8000/rootca', headers=headers, data=json.dumps(req_data))
+    r = requests.post(ca_url+"/rootca", headers=headers, data=json.dumps(req_data))
     return r.json()
 
 def issue_subca1_cert(profile: str, issuer_serial: str) -> dict:
@@ -226,7 +229,7 @@ def issue_subca1_cert(profile: str, issuer_serial: str) -> dict:
         "issuer_serial": issuer_serial,
         "tier": 1
     }
-    r = requests.post('http://127.0.0.1:8000/subca', headers=headers, data=json.dumps(req_data))
+    r = requests.post(ca_url+"/subca", headers=headers, data=json.dumps(req_data))
     return r.json()
 
 def issue_subca2_cert(profile: str, issuer_serial: str) -> dict:
@@ -239,7 +242,7 @@ def issue_subca2_cert(profile: str, issuer_serial: str) -> dict:
         "issuer_serial": issuer_serial,
         "tier": 2
     }
-    r = requests.post('http://127.0.0.1:8000/subca', headers=headers, data=json.dumps(req_data))
+    r = requests.post(ca_url+"/subca", headers=headers, data=json.dumps(req_data))
     return r.json()
 
 def issue_leaf_cert(profile: str, issuer_serial: str) -> dict:
@@ -252,7 +255,7 @@ def issue_leaf_cert(profile: str, issuer_serial: str) -> dict:
         "issuer_serial": issuer_serial,
         "name": "SECCLeaf"
     }
-    r = requests.post('http://127.0.0.1:8000/leaf', headers=headers, data=json.dumps(req_data))
+    r = requests.post(ca_url+"/leaf", headers=headers, data=json.dumps(req_data))
     return r.json()
 
 def issue_ocsp_cert(profile: str, issuer_serial: str) -> dict:
@@ -264,5 +267,5 @@ def issue_ocsp_cert(profile: str, issuer_serial: str) -> dict:
         },
         "issuer_serial": issuer_serial
     }
-    r = requests.post('http://127.0.0.1:8000/ocsp', headers=headers, data=json.dumps(req_data))
+    r = requests.post(ca_url+"/ocsp", headers=headers, data=json.dumps(req_data))
     return r.json()

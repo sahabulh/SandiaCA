@@ -2,7 +2,7 @@ import datetime
 
 from fastapi import APIRouter, Depends, Response, status
 
-import utils
+import ca_server.utils as utils
 import models.models as models
 from ca_server.auth import api_key_auth
 

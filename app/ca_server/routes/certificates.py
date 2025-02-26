@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Response, status
 
 from cryptography.x509.oid import NameOID
 
-import utils
+import ca_server.utils as utils
 import models.models as models
 from ca_server.auth import api_key_auth
 

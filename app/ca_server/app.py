@@ -5,7 +5,7 @@ from fastapi import FastAPI, Depends, Response, status
 from fastapi.responses import FileResponse
 
 from ca_server.auth import api_key_auth
-from exceptions import ResourceNotFoundError
+from shared.exceptions import ResourceNotFoundError
 
 from routes.certificates import router as cert_router
 from routes.revocation import router as revoke_router

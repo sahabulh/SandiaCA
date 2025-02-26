@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, Response, status
 
-import utils
+import ca_server.utils as utils
 import models.models as models
 from ca_server.auth import api_key_auth
 
-from exceptions import EntryNotFoundError
+from shared.exceptions import EntryNotFoundError
+from shared.utils import get_profile
 
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 
@@ -26,7 +27,7 @@ async def create_crypto(profile: models.CryptoProfileCreate, response: Response,
 @router.get("/profile/crypto/{profile_name}", summary="Get a cryptographic profile by name", tags=["Profile"])
 async def get_crypto(profile_name: str, response: Response, role: str = Depends(api_key_auth)):
     try:
-        return await utils.get_profile(type="crypto", name=profile_name)
+        return await get_profile(type="crypto", name=profile_name)
     except EntryNotFoundError as err:
         response.status_code = status.HTTP_404_NOT_FOUND
         return {"error": str(err)}
@@ -64,7 +65,7 @@ async def create_entity(profile: models.EntityProfileCreate, response: Response,
 @router.get("/profile/entity/{profile_name}", summary="Get an entity profile by name", tags=["Profile"])
 async def get_entity(profile_name: str, response: Response, role: str = Depends(api_key_auth)):
     try:
-        return await utils.get_profile(type="entity", name=profile_name)
+        return await get_profile(type="entity", name=profile_name)
     except EntryNotFoundError as err:
         response.status_code = status.HTTP_404_NOT_FOUND
         return {"error": str(err)}

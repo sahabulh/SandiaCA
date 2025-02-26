@@ -12,6 +12,8 @@ from pathlib import Path
 abs_path = str(Path(__file__).absolute().parent)
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 
+ca_url = "http://127.0.0.1:9100"
+
 headers = {
     'accept':       'application/json',
     'X-API-KEY':    'iamadmin',
@@ -19,7 +21,7 @@ headers = {
 }
 
 def get_test_cases():
-    r = requests.get('http://127.0.0.1:8000/cert', headers=headers)
+    r = requests.get(ca_url+"/cert", headers=headers)
     data = r.json()
 
     SECC_LEAF = None
@@ -30,11 +32,11 @@ def get_test_cases():
     if not SECC_LEAF:
         exit()
 
-    r = requests.get('http://127.0.0.1:8000/issuer/'+str(SECC_LEAF.serial_number), headers=headers)
+    r = requests.get(ca_url+"/issuer/"+str(SECC_LEAF.serial_number), headers=headers)
     CPO_SUBCA_2 = load_cert(r.json()["details"])
-    r = requests.get('http://127.0.0.1:8000/issuer/'+str(CPO_SUBCA_2.serial_number), headers=headers)
+    r = requests.get(ca_url+"/issuer/"+str(CPO_SUBCA_2.serial_number), headers=headers)
     CPO_SUBCA_1 = load_cert(r.json()["details"])
-    r = requests.get('http://127.0.0.1:8000/issuer/'+str(CPO_SUBCA_1.serial_number), headers=headers)
+    r = requests.get(ca_url+"/issuer/"+str(CPO_SUBCA_1.serial_number), headers=headers)
     V2G_ROOT = load_cert(r.json()["details"])
     
     test_certs = [
@@ -56,7 +58,7 @@ def load_cert(serial: str) -> x509.Certificate:
     return cert
 
 def load_cert_as_string(serial: str) -> str:
-    r = requests.get('http://127.0.0.1:8000/cert/'+serial, headers=headers)
+    r = requests.get(ca_url+"/cert/"+serial, headers=headers)
     return r.json()["details"]
 
 test_certs = get_test_cases()
