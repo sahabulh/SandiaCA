@@ -1,6 +1,7 @@
 # Tests revocation status of all the certs in the cert_db.json file
+import base64, requests, sys, os
+from dotenv import load_dotenv
 
-import base64, requests, sys
 from cryptography import x509
 from cryptography.x509 import ocsp
 from cryptography.hazmat.primitives import serialization
@@ -12,7 +13,9 @@ from pathlib import Path
 abs_path = str(Path(__file__).absolute().parent)
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 
-ca_url = "http://127.0.0.1:9100"
+load_dotenv()
+
+ca_url = "http://127.0.0.1:"+os.getenv('CA_PORT')
 
 headers = {
     'accept':       'application/json',

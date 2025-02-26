@@ -1,4 +1,5 @@
-import json, requests, sys
+import json, requests, sys, os
+from dotenv import load_dotenv
 
 from cryptography import x509
 from cryptography.x509 import load_pem_x509_certificate
@@ -12,8 +13,10 @@ abs_path = str(Path(__file__).absolute().parent.parent)
 sys.path.append(abs_path)
 sys.path.append(abs_path+"\\app")
 
-ca_url = "http://127.0.0.1:9100"
-ocsp_url = "http://127.0.0.1:9101"
+load_dotenv()
+
+ca_url = "http://127.0.0.1:"+os.getenv('CA_PORT')
+ocsp_url = "http://127.0.0.1:"+os.getenv('OCSP_PORT')
 
 headers = {
     'accept':       'application/json',

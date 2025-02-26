@@ -1,4 +1,5 @@
 import requests, sys, os
+from dotenv import load_dotenv
 
 from abc import ABC
 from pathlib import Path
@@ -17,9 +18,11 @@ headers = {
     'Content-Type': 'application/json',
 }
 
+load_dotenv()
+
 crypto_profile = "secp256r1_sha256"
-ca_url = "http://127.0.0.1:9100"
-ocsp_url = "http://host.docker.internal:9101"
+ca_url = "http://127.0.0.1:"+os.getenv('CA_PORT')
+ocsp_url = "http://host.docker.internal:"+os.getenv('OCSP_PORT')
 
 class EVerestSaver(ABC):
     cert_path_map = {
