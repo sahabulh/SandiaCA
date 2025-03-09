@@ -14,25 +14,34 @@ abs_path = str(Path(__file__).absolute().parent.parent)
 
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 
-from database.db import insert, find
+from app.database.db import insert, find
 
-import models.models as models
-from shared.utils import get_cert_info, get_profiles
-from shared.exceptions import DBConnectionError, EntryNotFoundError
+import app.models.models as models
+from app.shared.utils import get_cert_info, get_profiles
+from app.shared.exceptions import DBConnectionError, EntryNotFoundError
 
-from config import Config
+from .config import Config
 
 def get_name(name: str, domain: str) -> x509.Name:
     config = Config()
     config = config.load()
-    return x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, name),
-            x509.NameAttribute(NameOID.COUNTRY_NAME, config.country_code),
-            x509.NameAttribute(NameOID.DOMAIN_COMPONENT, domain),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, config.organization_name),
-            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, config.organizational_unit_name),
-            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, config.state_or_province_name),
-        ])
+    if not domain or domain == "":
+        return x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, name),
+                x509.NameAttribute(NameOID.COUNTRY_NAME, config.country_code),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, config.organization_name),
+                x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, config.organizational_unit_name),
+                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, config.state_or_province_name),
+            ])
+    else:
+        return x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, name),
+                x509.NameAttribute(NameOID.COUNTRY_NAME, config.country_code),
+                x509.NameAttribute(NameOID.DOMAIN_COMPONENT, domain),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, config.organization_name),
+                x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, config.organizational_unit_name),
+                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, config.state_or_province_name),
+            ])
 
 async def save_cert_and_key(cert: x509.Certificate, key: Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey], issuer_serial: int, profile: models.Profile):
     if not os.path.exists(abs_path+"/vault/"):
@@ -94,7 +103,20 @@ async def generate_private_key(key_algorithm: str) -> Union[ec.EllipticCurvePriv
     elif key_algorithm == "Ed448":
         private_key = ed448.Ed448PrivateKey.generate()
     else:
-        raise NotImplementedError("Key algorithms except secp256r1, secp512r1 and Ed448 are not yet supported.")
+        raise NotImplementedError(f"Key algorithm {key_algorithm} is not supported.")
+    return private_key
+
+async def generate_test_private_key(key_algorithm: str) -> Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]:
+    if key_algorithm == "secp256r1":
+        private_key = ec.generate_private_key(ec.SECP256R1())
+    elif key_algorithm == "secp521r1":
+        private_key = ec.generate_private_key(ec.SECP521R1())
+    elif key_algorithm == "secp192r1":
+        private_key = ec.generate_private_key(ec.SECP192R1())
+    elif key_algorithm == "Ed448":
+        private_key = ed448.Ed448PrivateKey.generate()
+    else:
+        raise NotImplementedError(f"Key algorithm {key_algorithm} is not supported.")
     return private_key
 
 async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]]:
@@ -197,6 +219,130 @@ async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.Elli
             certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA256())
         elif crypto_profile.signature_hash == "sha512":
             certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA512())
+        else:
+            raise NotImplementedError(f"Signature hash {crypto_profile.signature_hash} is not supported")
+    return certificate, private_key
+
+async def build_test_cert(data: models.TestCert) -> Tuple[x509.Certificate, Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]]:
+    private_key = await generate_test_private_key(data.key_algorithm)
+    public_key = private_key.public_key()
+    serial = x509.random_serial_number()
+
+    builder = x509.CertificateBuilder()
+    builder = builder.serial_number(serial)
+    builder = builder.public_key(public_key)
+    builder = builder.subject_name(get_name(data.name, data.domain))
+
+    if data.subject_key_identifier:
+        if data.subject_key_identifier.value:
+            builder = builder.add_extension(x509.SubjectKeyIdentifier(digest=bytes.fromhex(data.subject_key_identifier.value)), critical=data.subject_key_identifier.critical)
+        else:
+            builder = builder.add_extension(x509.SubjectKeyIdentifier.from_public_key(public_key=public_key), critical=data.subject_key_identifier.critical)
+
+    issuer_ski = None
+    if not data.issuer_serial:
+        data.issuer_serial = str(serial)
+        issuer_key = private_key
+        builder = builder.issuer_name(get_name(data.name, data.domain))
+        if data.authority_key_identifier:
+            if data.authority_key_identifier.value:
+                issuer_ski = x509.SubjectKeyIdentifier(digest=bytes.fromhex(data.authority_key_identifier.value))
+            else:
+                issuer_ski = x509.SubjectKeyIdentifier.from_public_key(public_key=public_key)
+    else:
+        issuer_cert = load_cert(data.issuer_serial)
+        issuer_cert_info = await get_cert_info(serial=data.issuer_serial)
+        issuer_key = load_pem_private_key(issuer_cert_info.key.encode(), password=None)
+        builder = builder.issuer_name(issuer_cert.subject)
+        if data.authority_key_identifier:
+            if data.authority_key_identifier.value:
+                issuer_ski = x509.SubjectKeyIdentifier(digest=bytes.fromhex(data.authority_key_identifier.value))
+            else:
+                issuer_ski = x509.SubjectKeyIdentifier.from_public_key(public_key=issuer_key.public_key())
+    
+    if issuer_ski:
+        builder = builder.add_extension(x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(issuer_ski), critical=data.authority_key_identifier.critical)
+    
+    now = datetime.datetime.now(datetime.UTC)
+    if data.dates:
+        if data.dates.start == "future":
+            before = now.replace(year = now.year + 1)
+        elif data.dates.start == "past":
+            before = now.replace(year = now.year - 1)
+        else:
+            before = now
+        duration = data.dates.duration
+    else:
+        before = now
+        duration = models.Validity()
+    new_year = before.year + duration.years
+    after = now.replace(year = new_year)
+    if (after.month + duration.months) % 12 == 0:
+        new_month = 12
+        new_year = after.year + (after.month + duration.months) // 12 - 1
+    else:
+        new_month = (after.month + duration.months) % 12
+        new_year = after.year + (after.month + duration.months) // 12
+    after = after.replace(year = new_year, month = new_month)
+    after += datetime.timedelta(days=duration.days)
+    builder = builder.not_valid_before(before)
+    builder = builder.not_valid_after(after)
+
+    extended_key_usage = []
+    if data.extended_key_usage:
+        if data.extended_key_usage.value == "ocsp_signing":
+            extended_key_usage.append(ExtendedKeyUsageOID.OCSP_SIGNING)
+        if data.extended_key_usage.value == "server_auth":
+            extended_key_usage.append(ExtendedKeyUsageOID.SERVER_AUTH)
+        if data.extended_key_usage.value == "client_auth":
+            extended_key_usage.append(ExtendedKeyUsageOID.CLIENT_AUTH)
+    if extended_key_usage:
+        builder = builder.add_extension(x509.ExtendedKeyUsage(extended_key_usage), critical=data.extended_key_usage.critical)
+
+    if data.ocsp_url:
+        builder = builder.add_extension(x509.AuthorityInformationAccess([
+            x509.AccessDescription(
+                AuthorityInformationAccessOID.OCSP,
+                x509.UniformResourceIdentifier(data.ocsp_url.value)
+            )
+        ]), critical=data.ocsp_url.critical)
+
+    if data.crl_url:
+        builder = builder.add_extension(x509.CRLDistributionPoints([
+            x509.DistributionPoint(
+                full_name=[x509.UniformResourceIdentifier(data.crl_url.value+"/crl/"+data.issuer_serial+".crl")],
+                relative_name=None, reasons=None, crl_issuer=None
+            )
+        ]), critical=data.crl_url.critical)
+    
+    if data.basic_constraints:
+        builder = builder.add_extension(x509.BasicConstraints(
+            ca=data.basic_constraints.value.ca,
+            path_length=data.basic_constraints.value.pathLength
+        ), critical=data.basic_constraints.critical)
+
+    if data.key_usage:
+        builder = builder.add_extension(x509.KeyUsage(
+            data.key_usage.value.digitalSignature,
+            data.key_usage.value.nonRepudiation,
+            data.key_usage.value.keyEncipherment,
+            data.key_usage.value.dataEncipherment,
+            data.key_usage.value.keyAgreement,
+            data.key_usage.value.keyCertSign,
+            data.key_usage.value.cRLSign,
+            data.key_usage.value.encipherOnly,
+            data.key_usage.value.decipherOnly
+        ), critical=data.key_usage.critical)
+
+    if data.key_algorithm == "Ed448":
+        certificate = builder.sign(private_key=issuer_key, algorithm=None)
+    else:
+        if data.signature_hash == "sha256":
+            certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA256())
+        elif data.signature_hash == "sha512":
+            certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA512())
+        else:
+            raise NotImplementedError(f"Signature hash {data.signature_hash} is not supported")
     return certificate, private_key
 
 async def build_crl(revocation_list: List[models.RevokedCert],

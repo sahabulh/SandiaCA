@@ -10,9 +10,9 @@ from cryptography.x509.ocsp import load_der_ocsp_request, OCSPCertStatus, OCSPRe
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-import shared.utils as utils
-from database.db import connect_and_init_db, close_db
-from shared.exceptions import SHA1Error, WrongIssuerError, ResponseNotAllowedError, EntryNotFoundError
+import app.shared.utils as utils
+from app.database.db import connect_and_init_db, close_db
+from app.shared.exceptions import SHA1Error, WrongIssuerError, ResponseNotAllowedError, EntryNotFoundError
 
 ca_url = "http://ca:8000/"
 headers = {

@@ -1,15 +1,15 @@
 from fastapi import APIRouter, Depends, Response, status
 
-import ca_server.utils as utils
-import models.models as models
-from ca_server.auth import api_key_auth
+import app.ca_server.utils as utils
+import app.models.models as models
+from app.ca_server.auth import api_key_auth
 
-from shared.exceptions import EntryNotFoundError
-from shared.utils import get_profile
+from app.shared.exceptions import EntryNotFoundError
+from app.shared.utils import get_profile
 
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 
-from database.db import insert, update
+from app.database.db import insert, update
 
 router = APIRouter()
 

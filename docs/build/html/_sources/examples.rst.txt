@@ -1,0 +1,22 @@
+.. _examples:
+
+Module: examples
+================
+
+Example for generating malformed certificate bundle
+---------------------------------------------------
+
+.. automodule:: examples.generate_malformed
+   :members:
+
+Example for generating base case good certificate bundle
+--------------------------------------------------------
+
+.. automodule:: examples.generate_bundle
+   :members:
+
+Example for generating certificate profiles for base case
+---------------------------------------------------------
+
+.. automodule:: examples.generate_profiles
+   :members:

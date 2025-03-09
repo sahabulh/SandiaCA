@@ -45,7 +45,7 @@ test_cases_ec_good = [
 ]
 
 test_cases_error = [
-    ("secp384r1_sha384","Key algorithms except secp256r1, secp512r1 and Ed448 are not yet supported."),
+    ("secp384r1_sha384","Key algorithm secp384r1 is not supported."),
     ("secp256r1_sha512","Entry with name secp256r1_sha512 not found in the database.")
 ]
 

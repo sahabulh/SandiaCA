@@ -1,7 +1,7 @@
 import requests
 from abc import ABC
 
-from models.models import Cert, CertChain, ISO15118CertBundle
+from app.models.models import Cert, CertChain, ISO15118CertBundle
 
 headers = {
     'accept':       'application/json',

@@ -1,9 +1,9 @@
 from typing import Union, Tuple
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 
-import models.models as models
-from database.db import find
-from shared.exceptions import DBConnectionError, EntryNotFoundError
+import app.models.models as models
+from app.database.db import find
+from app.shared.exceptions import DBConnectionError, EntryNotFoundError
 
 async def get_profile(type: str, name: str) -> dict:
     query = {"name": name}

@@ -1,0 +1,6 @@
+.. _usage:
+
+Usage
+=====
+
+1. Start the docker containers with ``docker compose up -d``.

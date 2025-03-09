@@ -10,7 +10,7 @@ from typing import Tuple
 
 import app.models.models as models
 from app.shared import create
-from generate_profiles import create_crypto_profile, create_entity_profiles
+from examples.generate_profiles import create_crypto_profile, create_entity_profiles
 
 headers = {
     'accept':       'application/json',
@@ -130,9 +130,9 @@ class MaEVeSaver(ABC):
             os.system(command)
 
 def load_cert_and_key(serial: str) -> Tuple[str, str]:
-    r = requests.get(ca_url+"cert/"+serial, headers=headers)
+    r = requests.get(ca_url+"/cert/"+serial, headers=headers)
     cert = r.json()["details"]
-    r = requests.get(ca_url+"key/"+serial, headers=headers)
+    r = requests.get(ca_url+"/key/"+serial, headers=headers)
     key = r.json()["details"]
     return cert, key
 
