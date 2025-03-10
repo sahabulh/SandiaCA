@@ -12,19 +12,20 @@ import app.models.models as models
 from app.shared import create
 from examples.generate_profiles import create_crypto_profile, create_entity_profiles
 
+load_dotenv()
+
 headers = {
     'accept':       'application/json',
-    'X-API-KEY':    'iamadmin',
+    'X-API-KEY':    os.getenv('API_KEY'),
     'Content-Type': 'application/json',
 }
 
-load_dotenv()
-
 crypto_profile = "secp256r1_sha256"
-ca_url = "http://127.0.0.1:"+os.getenv('CA_PORT')
+ca_url = os.getenv('CA_URL')+":"+os.getenv('CA_PORT')
 ocsp_url = "http://host.docker.internal:"+os.getenv('OCSP_PORT')
 
 class EVerestSaver(ABC):
+    """Saves certificate according to EVerest file structure"""
     cert_path_map = {
         "CPO": {
             "rootca": {"path": "ca/v2g/", "name": "V2G_ROOT_CA"},
@@ -84,6 +85,7 @@ class EVerestSaver(ABC):
             os.system(command)
 
 class MaEVeSaver(ABC):
+    """Saves certificate according to MaEVe file structure"""
     cert_path_map = {
         "CPO": {
             "rootca": "root-V2G-cert",
@@ -146,6 +148,13 @@ def save_cert_and_key(serial: str, entity: str, path: str, filename: str):
             file.write(key)
 
 def main():
+    """
+    Generates a base case certificate bundle according to the ISO 15118 standard.
+    Saves the generated certificates locally according to the EVerest and the MaEVe
+    certificate structure. Configured to run tests with these two tools running
+    in docker.
+    """
+
     # Do it for only the first time if data is persisted
     # If data is not persisted, do it everytime after restarting the containers
     create_crypto_profile(crypto_profile=crypto_profile, ca_url=ca_url, headers=headers)
@@ -206,4 +215,5 @@ def main():
                 ocsp_create = create.CertCreate(ocsp_model)
                 ocsp_create.issue(ca_url = ca_url+"/ocsp")
 
-main()
+if __name__ == "__main__":
+    main()

@@ -15,6 +15,7 @@ FROM python:3.12 AS ocsp
 WORKDIR /usr/src/app
 COPY app/ .
 COPY requirements.txt .
+COPY .env .
 RUN rm -rf ca_server
 
 RUN pip install --no-cache-dir -r requirements.txt

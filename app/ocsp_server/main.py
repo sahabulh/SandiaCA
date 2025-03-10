@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-import sys, datetime, base64, requests
+import sys, os, datetime, base64, requests
+
+from dotenv import load_dotenv
 from pathlib import Path
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 
@@ -14,10 +16,13 @@ import app.shared.utils as utils
 from app.database.db import connect_and_init_db, close_db
 from app.shared.exceptions import SHA1Error, WrongIssuerError, ResponseNotAllowedError, EntryNotFoundError
 
+load_dotenv()
+
 ca_url = "http://ca:8000/"
+
 headers = {
     'accept':       'application/json',
-    'X-API-KEY':    'iamadmin',
+    'X-API-KEY':    os.getenv('API_KEY'),
     'Content-Type': 'application/json',
 }
 

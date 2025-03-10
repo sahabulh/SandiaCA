@@ -18,5 +18,6 @@ Contents
 
    installation
    usage
+   examples
    reference
    

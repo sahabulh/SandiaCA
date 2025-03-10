@@ -1,103 +1,23 @@
 import requests, sys, os
 from dotenv import load_dotenv
-from abc import ABC
-from pydantic import BaseModel
-from typing import Optional
-
-from cryptography.x509 import load_pem_x509_certificate
-from cryptography.hazmat.primitives import serialization
 
 from pathlib import Path
 abs_path = str(Path(__file__).absolute().parent.parent)
 sys.path.append(abs_path)
 
 import app.models.models as models
-
-headers = {
-    'accept':       'application/json',
-    'X-API-KEY':    'iamadmin',
-    'Content-Type': 'application/json',
-}
+from app.models.enums import ValidityStart, CertFormat
+from app.shared.saver import CertSaver, CertChainSaver, CertBundleSaver
 
 load_dotenv()
 
-ca_url = "http://127.0.0.1:"+os.getenv('CA_PORT')
-ocsp_url = "http://host.docker.internal:"+os.getenv('OCSP_PORT')
+headers = {
+    'accept':       'application/json',
+    'X-API-KEY':    os.getenv('API_KEY'),
+    'Content-Type': 'application/json',
+}
 
-class CertPath(BaseModel):
-    """Defines a single certificate saving profile."""
-    path: Optional[str] = None
-    """Extra path under the basepath for more flexible organization. If None,
-    certificate will be saved in the basepath."""
-    name: str
-    """Name for certificate and key files"""
-    serial: str
-    """Certificate serial number"""
-    key: bool = False
-    """Defines whether the private key will be saved or not. If False,
-    the private key will not be saved."""
-    format: list[str] = ['pem']
-    """List of certificate file formats to be saved"""
-
-    def save(self, basepath: str):
-        """Saves the certificate."""
-        if self.path:
-            os.makedirs(basepath+"/"+self.path, exist_ok=True)
-            path = basepath+"/"+self.path+"/"+self.name
-        else:
-            os.makedirs(basepath, exist_ok=True)
-            path = basepath+"/"+self.name
-        load_and_save_cert(self.serial, path, self.format)
-        if self.key:
-            load_and_save_key(self.serial, path)
-
-class CertChainPath(BaseModel):
-    """Defines a certificate chain to be saved."""
-    root: Optional[CertPath] = None
-    """The CertPath model for the Root CA"""
-    subca1: Optional[CertPath] = None
-    """The CertPath model for the SubCA 1"""
-    subca2: Optional[CertPath] = None
-    """The CertPath model for the SubCA 2"""
-    leaf: Optional[CertPath] = None
-    """The CertPath model for the leaf/end-entity"""
-
-    def save(self, path: str):
-        """Saves the certificate chain."""
-        if self.root:
-            self.root.save(basepath=path)
-        if self.subca1:
-            self.subca1.save(basepath=path)
-        if self.subca2:
-            self.subca2.save(basepath=path)
-        if self.leaf:
-            self.leaf.save(basepath=path)
-
-class CertBundlePath(BaseModel):
-    """Defines the full certificate bunudle to be saved."""
-    cpo: Optional[CertChainPath] = None
-    """The CPO/CSO chain"""
-    oem: Optional[CertChainPath] = None
-    """The OEM chain"""
-    mo: Optional[CertChainPath] = None
-    """The MO/eMSP chain"""
-    csms_client: Optional[CertChainPath] = None
-    """The client chain or charging station chain for OCPP"""
-    csms_server: Optional[CertChainPath] = None
-    """The CSMS server chain for OCPP"""
-
-    def save(self, path: str):
-        """Saves the certificate bundle."""
-        if self.cpo:
-            self.cpo.save(path=path)
-        if self.oem:
-            self.oem.save(path=path)
-        if self.mo:
-            self.mo.save(path=path)
-        if self.csms_client:
-            self.csms_client.save(path=path)
-        if self.csms_server:
-            self.csms_server.save(path=path)
+ca_url = os.getenv('CA_URL')+":"+os.getenv('CA_PORT')
 
 def issue(cert: models.TestCert) -> str:
     """
@@ -118,134 +38,124 @@ def issue(cert: models.TestCert) -> str:
         print(r.content)
         raise Exception("Cert issue error")
 
-def load_and_save_cert(serial: str, path: str, format: list[str]):
-    """
-    Loads certificate querying by serial number and saves the cert in the given
-    formats to the given path.
-
-    :param serial: Certificate serial number.
-    :type serial: str
-    :param path: Full path to the save location without the file extension.
-    :type path: str
-    :param format: List of formats. Allowed formats: "pem" and "der".
-    :type format: list[str]
-    """
-
-    r = requests.get(ca_url+"/cert/"+serial, headers=headers)
-    cert_data = r.json()["details"]
-
-    if "pem" in format:
-        with open(path+".pem","w") as file:
-            file.write(cert_data)
-
-    if "der" in format:
-        cert = load_pem_x509_certificate(cert_data.encode())
-        cert_data = cert.public_bytes(encoding=serialization.Encoding.DER)
-        with open(path+".der","wb") as file:
-            file.write(cert_data)
-
-def load_and_save_key(serial: str, path: str):
-    """
-    Loads private key querying by serial number and saves the key to the given
-    path.
-
-    :param serial: Serial number of the associate certificate.
-    :type serial: str
-    :param path: Full path to the save location without the file extension.
-    :type path: str
-    """
-
-    r = requests.get(ca_url+"/key/"+serial, headers=headers)
-    key_data = r.json()["details"]
-    with open(path+".key","w") as file:
-        file.write(key_data)
-
 def main():
-    # Initiate bundle with all None
-    bundle = CertBundlePath()
+    """This example generates the CPO chain but with many wrong properties
+    according to ISO 15118-2. Check Annex F of the standard."""
+    
+    print("Initiating certificate bundle with all None")
+    bundle = CertBundleSaver()
 
-    # Initiate CPO chain with all None
-    cpo = CertChainPath()
+    print("Initiating CPO chain with all None\n")
+    cpo = CertChainSaver()
 
-    # Craft V2G Root CA model
-    dates = models.Dates(start="future")
+    print("Crafting V2G Root CA model")
+    # Issue: "Not before" date is one year in future
+    dates = models.Dates(start=ValidityStart.FUTURE)
+    # Issue: Signature hash is "secp192r1" which is not allowed for ISO 15118-2
+    # Issue: Domain component is not set to "V2G"
+    # Issue: Required extensions like KeyUsage, BasicConstraints are not added.
     model = models.TestCert(name="V2G ROOT CA 1", dates=dates,
                             key_algorithm="secp192r1", signature_hash="sha256")
-    # Issue V2G Root CA and get the serial
+    print("Issuing V2G Root CA and getting the serial number")
     v2g_root_serial = issue(model)
-    # Add V2G Root CA to the CPO Chain
-    cpo.root = CertPath(path="ca/v2g", name="V2G_ROOT_CA",
-                        serial=v2g_root_serial, key=True, format=["pem", "der"])
+    print("Adding V2G Root CA to the CPO chain\n")
+    cpo.root = CertSaver(path="ca/v2g", name="V2G_ROOT_CA",
+                        serial=v2g_root_serial, key=True,
+                        format=[CertFormat.PEM, CertFormat.DER])
 
-    # Craft CPO SUB CA1 model
-    dates = models.Dates(start="past")
+    print("Crafting CPO SubCA 1 model")
+    # Issue: "Not before" date is one year in past. Already expired.
+    dates = models.Dates(start=ValidityStart.PAST)
+    # Issue: SKI should be non critical (set to False)
     ski = models.Extension(critical=True)
+    # Issue: BasicConstraints is set using default value which is wrong
+    # for CPO SubCA 1. Also, it should be set critical.
     basic_constraints = models.Extension(value=models.BasicConstraints(),
                                          critical=False)
+    # Issue: KeyUsage is set using wrong flags for CPO SubCA 1
     key_usage = models.Extension(value=models.KeyUsage(keyAgreement=True,
                                                        encipherOnly=True),
                                                        critical=True)
+    # Issue: Wrong ExtendedKeyUsage extension for CPO SubCA 1
     extended_usage = models.Extension(value="ocsp_signing", critical=True)
+    # Issue: Not issuer serial is set. The cert will be self signed instead of
+    # signed by the V2G Root CA. Issuer serial should have been set to the 
+    # value of "v2g_root_serial" from above
     model = models.TestCert(name="CPO SUBCA1 1", dates=dates,
-                            key_algorithm="secp192r1", signature_hash="sha256",
+                            key_algorithm="secp256r1", signature_hash="sha256",
                             domain= "CPO",
                             basic_constraints=basic_constraints,
                             key_usage=key_usage, subject_key_identifier=ski,
                             extended_key_usage=extended_usage)
-    # Issue CPO SUB CA1 and get the serial
+    print("Issuing CPO SubCA 1 and getting the serial number")
     cpo_subca1_serial = issue(model)
-    # Add CPO SUB CA1 to the CPO Chain
-    cpo.subca1 = CertPath(path="ca/cso", name="CPO_SUB_CA_1",
+    print("Adding CPO SubCA 1 to the CPO chain\n")
+    cpo.subca1 = CertSaver(path="ca/cso", name="CPO_SUB_CA_1",
                           serial=cpo_subca1_serial)
 
-    # Craft CPO SUB CA2 model
-    dates = models.Dates(start="past",
+    print("Crafting CPO SubCA 2 model")
+    # Issue: "Not before" date is one year in past with a validity period of
+    # 6 months. Already expired.
+    dates = models.Dates(start=ValidityStart.PAST,
                          duration=models.Validity(years=0, months=6))
+    # Issue: SKI is set to random value
     ski = models.Extension(value="DEADBEEF", critical=False)
+    # Issue: AKI should be non critical (set to False)
     aki = models.Extension(critical=True)
+    # Issue: BasicConstraints has wrong values for CPO SubCA 2
     basic_constraints = models.Extension(value=models.BasicConstraints(
                                          ca=True, pathLength=10),
                                          critical=True)
+    # Issue: KeyUsage has wrong values for CPO SubCA 2.
+    # Also it should be critical.
     key_usage = models.Extension(value=models.KeyUsage(nonRepudiation=True),
                                  critical=False)
+    # Issue: Wrong ExtendedKeyUsage extension for CPO SubCA 2
     extended_usage = models.Extension(value="server_auth", critical=True)
+    # Issue: Issuer is set to V2G Root CA instead of CPO SubCA 1
     model = models.TestCert(name="CPO SUBCA2 1", dates=dates,
-                            key_algorithm="secp192r1", signature_hash="sha256",
+                            key_algorithm="secp256r1", signature_hash="sha256",
                             domain= "CPO", issuer_serial=v2g_root_serial,
                             subject_key_identifier=ski,
                             authority_key_identifier=aki,
                             basic_constraints=basic_constraints,
                             key_usage=key_usage,
                             extended_key_usage=extended_usage)
-    # Issue CPO SUB CA2 and get the serial
+    print("Issuing CPO SubCA 2 and getting the serial number")
     cpo_subca2_serial = issue(model)
-    # Add CPO SUB CA2 to the CPO Chain
-    cpo.subca2 = CertPath(path="ca/cso", name="CPO_SUB_CA_2",
+    print("Adding CPO SubCA 2 to the CPO chain\n")
+    cpo.subca2 = CertSaver(path="ca/cso", name="CPO_SUB_CA_2",
                           serial=cpo_subca2_serial)
 
-    # Craft SECC Leaf model
+    print("Crafting SECC Leaf model")
     dates = models.Dates(duration=models.Validity(years=0, months=3))
     ocsp = models.Extension(value="http://ocsp.sandiaca.com", critical=False)
-    crl = models.Extension(value="http://crl.sandiaca.com/cpo-subca2-1.crl",
-                           critical=False)
+    # Issue: CRL extension should be non critical
+    crl = models.Extension(value="http://crl.sandiaca.com",
+                           critical=True)
+    # Issue: Name (sets CN field) should be the CPID.
+    # Issue: Required extensions like KeyUsage, BasicConstraints are not added.
     model = models.TestCert(name="SECC Leaf", dates=dates,
-                            key_algorithm="secp192r1", signature_hash="sha256",
+                            key_algorithm="secp256r1", signature_hash="sha256",
                             domain= "CPO", issuer_serial=cpo_subca2_serial,
                             ocsp_url=ocsp, crl_url=crl)
-    # Issue SECC Leaf and get the serial
+    print("Issuing SECC Leaf and getting the serial number")
     cpo_leaf_serial = issue(model)
-    # Add SECC Leaf to the CPO Chain
-    cpo.leaf = CertPath(path="client/cso", name="SECC_LEAF",
+    print("Adding SECC Leaf to the CPO chain\n")
+    cpo.leaf = CertSaver(path="client/cso", name="SECC_LEAF",
                         serial=cpo_leaf_serial, key=True)
 
     # All four certs of the CPO chain has been added, so add CPO chain itself
     # to the main bundle
+    print("Adding CPO chain to the main bundle\n")
     bundle.cpo = cpo
 
     # Ideally, we need to add the other chains but for this example, we will
     # just issue the CPO chain.
     bundleName = "test_bundle_fail"
     basePath = abs_path+"/vault/"+bundleName
+    print(f"Saving bundle to {basePath}")
     bundle.save(path=basePath)
 
-main()
+if __name__ == "__main__":
+    main()

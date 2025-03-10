@@ -15,14 +15,14 @@ sys.path.append(abs_path+"\\app")
 
 load_dotenv()
 
-ca_url = "http://127.0.0.1:"+os.getenv('CA_PORT')
-ocsp_url = "http://127.0.0.1:"+os.getenv('OCSP_PORT')
-
 headers = {
     'accept':       'application/json',
-    'X-API-KEY':    'iamadmin',
+    'X-API-KEY':    os.getenv('API_KEY'),
     'Content-Type': 'application/json',
 }
+
+ca_url = os.getenv('CA_URL')+":"+os.getenv('CA_PORT')
+ocsp_url = os.getenv('OCSP_URL')+":"+os.getenv('OCSP_PORT')
 
 test_cases_crypto_profile = [
     ("secp256r1_sha256","secp256r1","sha256"),

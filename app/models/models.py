@@ -2,6 +2,8 @@ from pydantic import BaseModel
 from typing import List, NamedTuple, Optional, Union
 from datetime import datetime
 
+from .enums import ValidityStart
+
 class KeyUsage(NamedTuple):
     digitalSignature: bool = False
     nonRepudiation: bool = False
@@ -61,16 +63,6 @@ class EntityProfileCreate(EntityProfile):
     ocsp_url: Optional[str] = None
     crl_url: Optional[str] = None
 
-class EntityProfileTest(BaseModel):
-    name: str
-    validity: Validity = Validity()
-
-    key_usage: Optional[KeyUsage] = None
-    extended_key_usage: Optional[List[str]] = None
-    basic_constraints: Optional[BasicConstraints] = None
-    ocsp_url: Optional[str] = None
-    crl_url: Optional[str] = None
-
 class Profile(BaseModel):
     crypto_profile_name: Optional[str] = None
     entity_profile_name: str
@@ -99,7 +91,7 @@ class Extension(BaseModel):
     critical: bool
 
 class Dates(BaseModel):
-    start: str = "now"
+    start: ValidityStart = ValidityStart.NOW
     duration: Validity = Validity()
 
 class TestCert(BaseModel):

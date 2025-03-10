@@ -3,12 +3,51 @@
 Reference
 =========
 
-Modules
--------
+models
+------
 
-.. toctree::
-   :maxdepth: 2
-   :glob:
+models
+^^^^^^
+.. automodule:: app.models.models
+   :members:
 
-   app
-   examples
+enums
+^^^^^
+
+.. automodule:: app.models.enums
+   :members:
+   :undoc-members:
+   :member-order: bysource
+
+shared
+------
+
+create
+^^^^^^
+
+.. automodule:: app.shared.create
+   :members:
+
+exceptions
+^^^^^^^^^^
+
+.. automodule:: app.shared.exceptions
+   :members:
+
+utils
+^^^^^
+
+.. automodule:: app.shared.utils
+   :members:
+
+saver
+^^^^^
+
+.. automodule:: app.shared.saver
+   :members:
+
+database
+--------
+
+.. automodule:: app.database.db
+   :members:

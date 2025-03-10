@@ -1,7 +1,7 @@
 .. _examples:
 
-Module: examples
-================
+Examples
+========
 
 Example for generating malformed certificate bundle
 ---------------------------------------------------
@@ -12,11 +12,17 @@ Example for generating malformed certificate bundle
 Example for generating base case good certificate bundle
 --------------------------------------------------------
 
+More suitable of mass issuing certificates with cryptographic and entity profiles saved in the database.
+Offers limited flexibility to ensure conformance to the ISO 15118-2 certificate profiles.
+Employes some security checks for proper certificate issuance.
+
 .. automodule:: examples.generate_bundle
    :members:
 
 Example for generating certificate profiles for base case
 ---------------------------------------------------------
+
+Generates certificate profiles to be used for mass producing base case bundles.
 
 .. automodule:: examples.generate_profiles
    :members:

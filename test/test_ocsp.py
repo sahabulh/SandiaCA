@@ -15,13 +15,13 @@ sys.path.append(str(Path(__file__).absolute().parent.parent))
 
 load_dotenv()
 
-ca_url = "http://127.0.0.1:"+os.getenv('CA_PORT')
-
 headers = {
     'accept':       'application/json',
-    'X-API-KEY':    'iamadmin',
+    'X-API-KEY':    os.getenv('API_KEY'),
     'Content-Type': 'application/json',
 }
+
+ca_url = os.getenv('CA_URL')+":"+os.getenv('CA_PORT')
 
 def get_test_cases():
     r = requests.get(ca_url+"/cert", headers=headers)

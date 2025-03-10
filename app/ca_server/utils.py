@@ -17,6 +17,7 @@ from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 from app.database.db import insert, find
 
 import app.models.models as models
+from app.models.enums import ValidityStart
 from app.shared.utils import get_cert_info, get_profiles
 from app.shared.exceptions import DBConnectionError, EntryNotFoundError
 
@@ -265,9 +266,9 @@ async def build_test_cert(data: models.TestCert) -> Tuple[x509.Certificate, Unio
     
     now = datetime.datetime.now(datetime.UTC)
     if data.dates:
-        if data.dates.start == "future":
+        if data.dates.start == ValidityStart.FUTURE:
             before = now.replace(year = now.year + 1)
-        elif data.dates.start == "past":
+        elif data.dates.start == ValidityStart.PAST:
             before = now.replace(year = now.year - 1)
         else:
             before = now

@@ -1,11 +1,15 @@
-import requests
+import os, requests
+
+from dotenv import load_dotenv
 from abc import ABC
 
 from app.models.models import Cert, CertChain, ISO15118CertBundle
 
+load_dotenv()
+
 headers = {
     'accept':       'application/json',
-    'X-API-KEY':    'iamadmin',
+    'X-API-KEY':    os.getenv('API_KEY'),
     'Content-Type': 'application/json',
 }
 
