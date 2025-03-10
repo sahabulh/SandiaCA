@@ -1,0 +1,15 @@
+.. _installation:
+
+Installation
+============
+
+1. Have ``docker`` and ``python >= 3.12`` installed.
+2. Clone the SandiaCA repository and go to the root directory.
+3. `(Optional and preferable)` Create a new python virtual environment.
+4. Install python dependencies as follows:
+
+   .. code-block:: console
+
+      (.venv) $ pip install -r requirements.txt
+
+You are ready to use it. Check the usage guide next.

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-import sys, datetime, base64, requests
+import sys, os, datetime, base64, requests
+
+from dotenv import load_dotenv
 from pathlib import Path
 sys.path.append(str(Path(__file__).absolute().parent.parent))
 
@@ -10,35 +12,24 @@ from cryptography.x509.ocsp import load_der_ocsp_request, OCSPCertStatus, OCSPRe
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from contextlib import asynccontextmanager
+import app.shared.utils as utils
+from app.database.db import connect_and_init_db, close_db
+from app.shared.exceptions import SHA1Error, WrongIssuerError, ResponseNotAllowedError, EntryNotFoundError
 
-from pymongo import MongoClient
-
-import utils
-from exceptions import SHA1Error, WrongIssuerError, ResponseNotAllowedError, EntryNotFoundError
-
-# Define the database variable
-sandia_ca = None
+load_dotenv()
 
 ca_url = "http://ca:8000/"
+
 headers = {
     'accept':       'application/json',
-    'X-API-KEY':    'iamadmin',
+    'X-API-KEY':    os.getenv('API_KEY'),
     'Content-Type': 'application/json',
 }
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global sandia_ca
-    # Connect to MongoDB
-    mongodb_client = MongoClient("mongodb://root:example@mongo",27017, serverSelectionTimeoutMS=10, connectTimeoutMS=1000)
-    sandia_ca = mongodb_client.sandia_ca
-    await utils.load_db(sandia_ca)
-    yield
-    # Disconnect from MongoDB
-    mongodb_client.close()
+app = FastAPI()
 
-app = FastAPI(lifespan=lifespan)
+app.add_event_handler("startup", connect_and_init_db)
+app.add_event_handler("shutdown", close_db)
 
 @app.post("/")
 async def post_method_process(request: Request):
@@ -70,6 +61,8 @@ async def get_response(req: ocsp.OCSPRequest):
             issuer_serial = target_cert_info.issuer
             issuer_cert_info = await utils.get_cert_info(serial=issuer_serial)
             ocsp_serial = issuer_cert_info.responder
+            if not ocsp_serial:
+                raise ResponseNotAllowedError("Information about the responder is not available.")
         except EntryNotFoundError:
             raise ResponseNotAllowedError("Information not available in the database. This might mean that the responder is not authorized to send a response for this certificate.")
         

@@ -1,0 +1,53 @@
+.. _reference:
+
+Reference
+=========
+
+models
+------
+
+models
+^^^^^^
+.. automodule:: app.models.models
+   :members:
+
+enums
+^^^^^
+
+.. automodule:: app.models.enums
+   :members:
+   :undoc-members:
+   :member-order: bysource
+
+shared
+------
+
+create
+^^^^^^
+
+.. automodule:: app.shared.create
+   :members:
+
+exceptions
+^^^^^^^^^^
+
+.. automodule:: app.shared.exceptions
+   :members:
+
+utils
+^^^^^
+
+.. automodule:: app.shared.utils
+   :members:
+
+saver
+^^^^^
+
+.. automodule:: app.shared.saver
+   :members:
+
+database
+--------
+
+.. automodule:: app.database.db
+   :members:

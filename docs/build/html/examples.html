@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>3. Examples &#8212; SandiaCA v1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=649a27d8" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinxdoc.css?v=34905f61" />
+    <link rel="stylesheet" type="text/css" href="_static/autodoc_pydantic.css?v=a0a71c94" />
+    <script src="_static/documentation_options.js?v=76e2d817"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="4. Reference" href="reference.html" />
+    <link rel="prev" title="2. Usage" href="usage.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="reference.html" title="4. Reference"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="usage.html" title="2. Usage"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">SandiaCA v1.0.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href=""><span class="section-number">3. </span>Examples</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="examples">
+<span id="id1"></span><h1><span class="section-number">3. </span>Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h1>
+<section id="module-examples.generate_malformed">
+<span id="example-for-generating-malformed-certificate-bundle"></span><h2><span class="section-number">3.1. </span>Example for generating malformed certificate bundle<a class="headerlink" href="#module-examples.generate_malformed" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="examples.generate_malformed.issue">
+<span class="sig-prename descclassname"><span class="pre">examples.generate_malformed.</span></span><span class="sig-name descname"><span class="pre">issue</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cert</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="reference.html#app.models.models.TestCert" title="app.models.models.TestCert"><span class="pre">TestCert</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span></span><a class="headerlink" href="#examples.generate_malformed.issue" title="Link to this definition">¶</a></dt>
+<dd><p>Issues certificate using the given certificate model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cert</strong> (<a class="reference internal" href="reference.html#app.models.models.TestCert" title="app.models.models.TestCert"><em>TestCert</em></a>) – Certificate model to be used to generate the certificate.</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#Exception" title="(in Python v3.13)"><strong>Exception</strong></a> – If the server response doesn’t contain the serial number.</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Certificate serial number</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="examples.generate_malformed.main">
+<span class="sig-prename descclassname"><span class="pre">examples.generate_malformed.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#examples.generate_malformed.main" title="Link to this definition">¶</a></dt>
+<dd><p>This example generates the CPO chain but with many wrong properties
+according to ISO 15118-2. Check Annex F of the standard.</p>
+</dd></dl>
+
+</section>
+<section id="example-for-generating-base-case-good-certificate-bundle">
+<h2><span class="section-number">3.2. </span>Example for generating base case good certificate bundle<a class="headerlink" href="#example-for-generating-base-case-good-certificate-bundle" title="Link to this heading">¶</a></h2>
+<p>More suitable of mass issuing certificates with cryptographic and entity profiles saved in the database.
+Offers limited flexibility to ensure conformance to the ISO 15118-2 certificate profiles.
+Employes some security checks for proper certificate issuance.</p>
+<dl class="py class" id="module-examples.generate_bundle">
+<dt class="sig sig-object py" id="examples.generate_bundle.EVerestSaver">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">examples.generate_bundle.</span></span><span class="sig-name descname"><span class="pre">EVerestSaver</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">serials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><span class="pre">dict</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">bundle_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#examples.generate_bundle.EVerestSaver" title="Link to this definition">¶</a></dt>
+<dd><p>Saves certificate according to EVerest file structure</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="examples.generate_bundle.MaEVeSaver">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">examples.generate_bundle.</span></span><span class="sig-name descname"><span class="pre">MaEVeSaver</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">serials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><span class="pre">dict</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">bundle_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#examples.generate_bundle.MaEVeSaver" title="Link to this definition">¶</a></dt>
+<dd><p>Saves certificate according to MaEVe file structure</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="examples.generate_bundle.main">
+<span class="sig-prename descclassname"><span class="pre">examples.generate_bundle.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#examples.generate_bundle.main" title="Link to this definition">¶</a></dt>
+<dd><p>Generates a base case certificate bundle according to the ISO 15118 standard.
+Saves the generated certificates locally according to the EVerest and the MaEVe
+certificate structure. Configured to run tests with these two tools running
+in docker.</p>
+</dd></dl>
+
+</section>
+<section id="example-for-generating-certificate-profiles-for-base-case">
+<h2><span class="section-number">3.3. </span>Example for generating certificate profiles for base case<a class="headerlink" href="#example-for-generating-certificate-profiles-for-base-case" title="Link to this heading">¶</a></h2>
+<p>Generates certificate profiles to be used for mass producing base case bundles.</p>
+<dl class="py function" id="module-examples.generate_profiles">
+<dt class="sig sig-object py" id="examples.generate_profiles.create_crypto_profile">
+<span class="sig-prename descclassname"><span class="pre">examples.generate_profiles.</span></span><span class="sig-name descname"><span class="pre">create_crypto_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">crypto_profile</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ca_url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><span class="pre">dict</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#examples.generate_profiles.create_crypto_profile" title="Link to this definition">¶</a></dt>
+<dd><p>Generates example crypto profiles.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>crypto_profile</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – Name of the crypto profile. It is in the format of
+{key_algorithm}_{signature_hash}</p></li>
+<li><p><strong>ca_url</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – URL of the CA server.</p></li>
+<li><p><strong>headers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><em>dict</em></a>) – Headers for authenticating endpoint in FastAPI.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="examples.generate_profiles.create_entity_profiles">
+<span class="sig-prename descclassname"><span class="pre">examples.generate_profiles.</span></span><span class="sig-name descname"><span class="pre">create_entity_profiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ocsp_url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">ca_url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><span class="pre">dict</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#examples.generate_profiles.create_entity_profiles" title="Link to this definition">¶</a></dt>
+<dd><p>Generates example entity profiles.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ocsp_url</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – OCSP responder URL</p></li>
+<li><p><strong>ca_url</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.13)"><em>str</em></a>) – URL of the CA server. Is also the base URL for CRLs.</p></li>
+<li><p><strong>headers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.13)"><em>dict</em></a>) – Headers for authenticating endpoint in FastAPI.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h3><a href="index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">1. Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">2. Usage</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">3. Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-examples.generate_malformed">3.1. Example for generating malformed certificate bundle</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#examples.generate_malformed.issue"><code class="docutils literal notranslate"><span class="pre">issue()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#examples.generate_malformed.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#example-for-generating-base-case-good-certificate-bundle">3.2. Example for generating base case good certificate bundle</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#examples.generate_bundle.EVerestSaver"><code class="docutils literal notranslate"><span class="pre">EVerestSaver</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#examples.generate_bundle.MaEVeSaver"><code class="docutils literal notranslate"><span class="pre">MaEVeSaver</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#examples.generate_bundle.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#example-for-generating-certificate-profiles-for-base-case">3.3. Example for generating certificate profiles for base case</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#examples.generate_profiles.create_crypto_profile"><code class="docutils literal notranslate"><span class="pre">create_crypto_profile()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#examples.generate_profiles.create_entity_profiles"><code class="docutils literal notranslate"><span class="pre">create_entity_profiles()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="reference.html">4. Reference</a></li>
+</ul>
+
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/examples.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="reference.html" title="4. Reference"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="usage.html" title="2. Usage"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">SandiaCA v1.0.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href=""><span class="section-number">3. </span>Examples</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2025, Md Sahabul Hossain.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+  </body>
+</html>

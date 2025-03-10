@@ -10,27 +10,39 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from typing import Union, Tuple, List
 
 from pathlib import Path
-abs_path = str(Path(__file__).absolute().parent)
+abs_path = str(Path(__file__).absolute().parent.parent)
 
-from pymongo import ReturnDocument
-from pymongo.database import Database
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 
-import models
-from exceptions import DBConnectionError, EntryNotFoundError, IssuerInvalidError
+from app.database.db import insert, find
 
-# Define the database variable
-sandia_ca = None
+import app.models.models as models
+from app.models.enums import ValidityStart
+from app.shared.utils import get_cert_info, get_profiles
+from app.shared.exceptions import DBConnectionError, EntryNotFoundError
+
+from .config import Config
 
 def get_name(name: str, domain: str) -> x509.Name:
-    return x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, name),
-            x509.NameAttribute(NameOID.COUNTRY_NAME, 'US'),
-            x509.NameAttribute(NameOID.DOMAIN_COMPONENT, domain),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, 'Sandia National Labs'),
-            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, 'Electric Vehicles'),
-            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, 'New Mexico'),
-        ])
+    config = Config()
+    config = config.load()
+    if not domain or domain == "":
+        return x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, name),
+                x509.NameAttribute(NameOID.COUNTRY_NAME, config.country_code),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, config.organization_name),
+                x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, config.organizational_unit_name),
+                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, config.state_or_province_name),
+            ])
+    else:
+        return x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, name),
+                x509.NameAttribute(NameOID.COUNTRY_NAME, config.country_code),
+                x509.NameAttribute(NameOID.DOMAIN_COMPONENT, domain),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, config.organization_name),
+                x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, config.organizational_unit_name),
+                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, config.state_or_province_name),
+            ])
 
 async def save_cert_and_key(cert: x509.Certificate, key: Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey], issuer_serial: int, profile: models.Profile):
     if not os.path.exists(abs_path+"/vault/"):
@@ -43,19 +55,18 @@ async def save_cert_and_key(cert: x509.Certificate, key: Union[ec.EllipticCurveP
     else:
         key_data = key.private_bytes(encoding=serialization.Encoding.PEM,format=serialization.PrivateFormat.PKCS8,encryption_algorithm=serialization.NoEncryption()).decode('utf-8')
     cert_info = models.CertInfo(serial=str(cert.serial_number), key=key_data, issuer=str(issuer_serial), status=0, profile=profile)
-    certs = sandia_ca.certs
     post = cert_info.__dict__
     post["profile"] = post["profile"].__dict__
     try:
-        post_id = certs.insert_one(post).inserted_id
+        post_id = await insert(post, "certs")
         del post["_id"]
         return {"entry_id": str(post_id), "details": post}
     except (ServerSelectionTimeoutError, ConnectionFailure):
         raise DBConnectionError()
 
-def load_cert_and_key(serial: str) -> Tuple[x509.Certificate, Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]]:
+async def load_cert_and_key(serial: str) -> Tuple[x509.Certificate, Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]]:
     cert = load_cert(serial)
-    key = load_key(serial)
+    key = await load_key(serial)
     return cert, key
 
 def load_cert(serial: str) -> x509.Certificate:
@@ -63,9 +74,9 @@ def load_cert(serial: str) -> x509.Certificate:
     cert = load_pem_x509_certificate(cert_data)
     return cert
 
-def load_key(serial: str) -> Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]:
-    key_data = load_key_as_string(serial).encode()
-    key = load_pem_private_key(key_data, password=None)
+async def load_key(serial: str) -> Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]:
+    key_data = await load_key_as_string(serial)
+    key = load_pem_private_key(key_data.encode(), password=None)
     return key
 
 def load_cert_as_string(serial: str) -> str:
@@ -73,11 +84,10 @@ def load_cert_as_string(serial: str) -> str:
         cert = file.read()
     return cert
 
-def load_key_as_string(serial: str) -> str:
-    certs = sandia_ca.certs
+async def load_key_as_string(serial: str) -> str:
     query = {"serial": serial}
     try:
-        cert_info = certs.find_one(query)
+        cert_info = await find(query, "certs")
         if cert_info:
             key = cert_info["key"]
         else:
@@ -85,60 +95,6 @@ def load_key_as_string(serial: str) -> str:
     except (ServerSelectionTimeoutError, ConnectionFailure):
         raise DBConnectionError()
     return key
-
-async def get_profile(type: str, name: str) -> dict:
-    if type == "crypto":
-        profiles = sandia_ca.crypto_profiles
-    elif type == "entity":
-        profiles = sandia_ca.entity_profiles
-    query = {"name": name}
-    try:
-        profile = profiles.find_one(query, projection={'_id': False})
-        if profile:
-            return profile
-        else:
-            raise EntryNotFoundError(id_type="name", value=name)
-    except (ServerSelectionTimeoutError, ConnectionFailure):
-        raise DBConnectionError()
-    
-async def get_profiles(profile: models.Profile) -> Tuple[Union[models.CryptoProfile, None], models.EntityProfile]:
-    if profile.crypto_profile_name:
-        crypto_profile = await get_profile(type="crypto", name=profile.crypto_profile_name)
-        crypto_profile = models.CryptoProfile(**crypto_profile)
-    else:
-        crypto_profile = None
-    entity_profile = await get_profile(type="entity", name=profile.entity_profile_name)
-    entity_profile = models.EntityProfile(**entity_profile)
-    return crypto_profile, entity_profile
-
-async def get_cert_info(serial: str) -> models.CertInfo:
-    certs = sandia_ca.certs
-    query = {"serial": serial}
-    try:
-        cert_info = certs.find_one(query, projection={'_id': False})
-        if cert_info:
-            return models.CertInfo(**cert_info)
-        else:
-            raise EntryNotFoundError(id_type="serial", value=serial)
-    except (ServerSelectionTimeoutError, ConnectionFailure):
-        raise DBConnectionError()
-
-# TODO: Add support for one SubCA case  
-async def get_chain_serial_for_leaf(leaf_serial: str) -> dict:
-    leaf_cert_info = await get_cert_info(leaf_serial)
-    subca2_cert_info = await get_cert_info(leaf_cert_info.issuer)
-    subca1_cert_info = await get_cert_info(subca2_cert_info.issuer)
-    root_cert_info = await get_cert_info(subca1_cert_info.issuer)
-    return {
-        "ROOT": root_cert_info.serial,
-        "SUBCA1": subca1_cert_info.serial,
-        "SUBCA2": subca2_cert_info.serial,
-        "LEAF": leaf_serial
-    }
-    
-async def update(query: dict, value: dict, collection_name: str):
-    collection = sandia_ca[collection_name]
-    return collection.find_one_and_update(query, {'$set': value}, projection={'_id': False}, return_document = ReturnDocument.AFTER)
 
 async def generate_private_key(key_algorithm: str) -> Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]:
     if key_algorithm == "secp256r1":
@@ -148,7 +104,20 @@ async def generate_private_key(key_algorithm: str) -> Union[ec.EllipticCurvePriv
     elif key_algorithm == "Ed448":
         private_key = ed448.Ed448PrivateKey.generate()
     else:
-        raise NotImplementedError("Key algorithms except secp256r1, secp512r1 and Ed448 are not yet supported.")
+        raise NotImplementedError(f"Key algorithm {key_algorithm} is not supported.")
+    return private_key
+
+async def generate_test_private_key(key_algorithm: str) -> Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]:
+    if key_algorithm == "secp256r1":
+        private_key = ec.generate_private_key(ec.SECP256R1())
+    elif key_algorithm == "secp521r1":
+        private_key = ec.generate_private_key(ec.SECP521R1())
+    elif key_algorithm == "secp192r1":
+        private_key = ec.generate_private_key(ec.SECP192R1())
+    elif key_algorithm == "Ed448":
+        private_key = ed448.Ed448PrivateKey.generate()
+    else:
+        raise NotImplementedError(f"Key algorithm {key_algorithm} is not supported.")
     return private_key
 
 async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]]:
@@ -158,7 +127,9 @@ async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.Elli
         issuer_cert_info = await get_cert_info(serial=data.issuer_serial)
         issuer_key = load_pem_private_key(issuer_cert_info.key.encode(), password=None)
         if issuer_cert_info.status != 0:
-            raise IssuerInvalidError("The issuer certificate is revoked and can't be used to issue new certificates.")
+            # As we want to bypass best practices and strict requirements to generate bad certificates for tests, errors are replaced with warnings
+            # raise IssuerInvalidError("The issuer certificate is revoked and can not be used to issue new certificates.")
+            print("WARNING: The issuer certificate is revoked and should not be used to issue new certificates.")
     
     if not data.profile.crypto_profile_name:
         data.profile.crypto_profile_name = issuer_cert_info.profile.crypto_profile_name
@@ -182,11 +153,6 @@ async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.Elli
             builder = builder.subject_name(get_name(name=data.name, domain=data.domain))
         builder = builder.issuer_name(issuer_cert.subject)
         builder = builder.add_extension(x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(issuer_ski.value), critical=False)
-        builder = builder.add_extension(x509.CRLDistributionPoints([
-            x509.DistributionPoint(
-                full_name=[x509.UniformResourceIdentifier("http://localhost:8000/crl/"+data.issuer_serial+".crl")],
-                relative_name=None, reasons=None, crl_issuer=None
-            )]), critical=False)
 
     extended_key_usage = []
     if entity_profile.extended_key_usage:
@@ -204,6 +170,14 @@ async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.Elli
             x509.AccessDescription(
                 AuthorityInformationAccessOID.OCSP,
                 x509.UniformResourceIdentifier(entity_profile.ocsp_url)
+            )
+        ]), critical=False)
+
+    if entity_profile.crl_url:
+        builder = builder.add_extension(x509.CRLDistributionPoints([
+            x509.DistributionPoint(
+                full_name=[x509.UniformResourceIdentifier(entity_profile.crl_url+"/crl/"+data.issuer_serial+".crl")],
+                relative_name=None, reasons=None, crl_issuer=None
             )
         ]), critical=False)
     
@@ -246,6 +220,130 @@ async def build_cert(data: models.Cert) -> Tuple[x509.Certificate, Union[ec.Elli
             certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA256())
         elif crypto_profile.signature_hash == "sha512":
             certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA512())
+        else:
+            raise NotImplementedError(f"Signature hash {crypto_profile.signature_hash} is not supported")
+    return certificate, private_key
+
+async def build_test_cert(data: models.TestCert) -> Tuple[x509.Certificate, Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey]]:
+    private_key = await generate_test_private_key(data.key_algorithm)
+    public_key = private_key.public_key()
+    serial = x509.random_serial_number()
+
+    builder = x509.CertificateBuilder()
+    builder = builder.serial_number(serial)
+    builder = builder.public_key(public_key)
+    builder = builder.subject_name(get_name(data.name, data.domain))
+
+    if data.subject_key_identifier:
+        if data.subject_key_identifier.value:
+            builder = builder.add_extension(x509.SubjectKeyIdentifier(digest=bytes.fromhex(data.subject_key_identifier.value)), critical=data.subject_key_identifier.critical)
+        else:
+            builder = builder.add_extension(x509.SubjectKeyIdentifier.from_public_key(public_key=public_key), critical=data.subject_key_identifier.critical)
+
+    issuer_ski = None
+    if not data.issuer_serial:
+        data.issuer_serial = str(serial)
+        issuer_key = private_key
+        builder = builder.issuer_name(get_name(data.name, data.domain))
+        if data.authority_key_identifier:
+            if data.authority_key_identifier.value:
+                issuer_ski = x509.SubjectKeyIdentifier(digest=bytes.fromhex(data.authority_key_identifier.value))
+            else:
+                issuer_ski = x509.SubjectKeyIdentifier.from_public_key(public_key=public_key)
+    else:
+        issuer_cert = load_cert(data.issuer_serial)
+        issuer_cert_info = await get_cert_info(serial=data.issuer_serial)
+        issuer_key = load_pem_private_key(issuer_cert_info.key.encode(), password=None)
+        builder = builder.issuer_name(issuer_cert.subject)
+        if data.authority_key_identifier:
+            if data.authority_key_identifier.value:
+                issuer_ski = x509.SubjectKeyIdentifier(digest=bytes.fromhex(data.authority_key_identifier.value))
+            else:
+                issuer_ski = x509.SubjectKeyIdentifier.from_public_key(public_key=issuer_key.public_key())
+    
+    if issuer_ski:
+        builder = builder.add_extension(x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(issuer_ski), critical=data.authority_key_identifier.critical)
+    
+    now = datetime.datetime.now(datetime.UTC)
+    if data.dates:
+        if data.dates.start == ValidityStart.FUTURE:
+            before = now.replace(year = now.year + 1)
+        elif data.dates.start == ValidityStart.PAST:
+            before = now.replace(year = now.year - 1)
+        else:
+            before = now
+        duration = data.dates.duration
+    else:
+        before = now
+        duration = models.Validity()
+    new_year = before.year + duration.years
+    after = now.replace(year = new_year)
+    if (after.month + duration.months) % 12 == 0:
+        new_month = 12
+        new_year = after.year + (after.month + duration.months) // 12 - 1
+    else:
+        new_month = (after.month + duration.months) % 12
+        new_year = after.year + (after.month + duration.months) // 12
+    after = after.replace(year = new_year, month = new_month)
+    after += datetime.timedelta(days=duration.days)
+    builder = builder.not_valid_before(before)
+    builder = builder.not_valid_after(after)
+
+    extended_key_usage = []
+    if data.extended_key_usage:
+        if data.extended_key_usage.value == "ocsp_signing":
+            extended_key_usage.append(ExtendedKeyUsageOID.OCSP_SIGNING)
+        if data.extended_key_usage.value == "server_auth":
+            extended_key_usage.append(ExtendedKeyUsageOID.SERVER_AUTH)
+        if data.extended_key_usage.value == "client_auth":
+            extended_key_usage.append(ExtendedKeyUsageOID.CLIENT_AUTH)
+    if extended_key_usage:
+        builder = builder.add_extension(x509.ExtendedKeyUsage(extended_key_usage), critical=data.extended_key_usage.critical)
+
+    if data.ocsp_url:
+        builder = builder.add_extension(x509.AuthorityInformationAccess([
+            x509.AccessDescription(
+                AuthorityInformationAccessOID.OCSP,
+                x509.UniformResourceIdentifier(data.ocsp_url.value)
+            )
+        ]), critical=data.ocsp_url.critical)
+
+    if data.crl_url:
+        builder = builder.add_extension(x509.CRLDistributionPoints([
+            x509.DistributionPoint(
+                full_name=[x509.UniformResourceIdentifier(data.crl_url.value+"/crl/"+data.issuer_serial+".crl")],
+                relative_name=None, reasons=None, crl_issuer=None
+            )
+        ]), critical=data.crl_url.critical)
+    
+    if data.basic_constraints:
+        builder = builder.add_extension(x509.BasicConstraints(
+            ca=data.basic_constraints.value.ca,
+            path_length=data.basic_constraints.value.pathLength
+        ), critical=data.basic_constraints.critical)
+
+    if data.key_usage:
+        builder = builder.add_extension(x509.KeyUsage(
+            data.key_usage.value.digitalSignature,
+            data.key_usage.value.nonRepudiation,
+            data.key_usage.value.keyEncipherment,
+            data.key_usage.value.dataEncipherment,
+            data.key_usage.value.keyAgreement,
+            data.key_usage.value.keyCertSign,
+            data.key_usage.value.cRLSign,
+            data.key_usage.value.encipherOnly,
+            data.key_usage.value.decipherOnly
+        ), critical=data.key_usage.critical)
+
+    if data.key_algorithm == "Ed448":
+        certificate = builder.sign(private_key=issuer_key, algorithm=None)
+    else:
+        if data.signature_hash == "sha256":
+            certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA256())
+        elif data.signature_hash == "sha512":
+            certificate = builder.sign(private_key=issuer_key, algorithm=hashes.SHA512())
+        else:
+            raise NotImplementedError(f"Signature hash {data.signature_hash} is not supported")
     return certificate, private_key
 
 async def build_crl(revocation_list: List[models.RevokedCert],
@@ -266,9 +364,11 @@ async def build_crl(revocation_list: List[models.RevokedCert],
         ).build()
         builder = builder.add_revoked_certificate(revoked_cert)
     
-    crl = builder.sign(
-        private_key=issuer_priv_key, algorithm=hashes.SHA256(),
-    )
+    #TODO: Get hash from private key and use the same hash for signing CRL
+    if isinstance(issuer_priv_key, ed448.Ed448PrivateKey):
+        crl = builder.sign(private_key=issuer_priv_key, algorithm=None)
+    else:
+        crl = builder.sign(private_key=issuer_priv_key, algorithm=hashes.SHA256())
 
     if not os.path.exists(abs_path+"/crl/"):
         os.makedirs(abs_path+"/crl/", exist_ok=True)
@@ -289,7 +389,7 @@ async def add_to_crl(revoked_cert: models.RevokedCert, issuer: str):
     
     revocation_list.append(revoked_cert)
 
-    issuer_cert, issuer_priv_key = load_cert_and_key(serial=issuer)
+    issuer_cert, issuer_priv_key = await load_cert_and_key(serial=issuer)
 
     await build_crl(revocation_list, issuer_cert, issuer_priv_key)
 
@@ -307,14 +407,6 @@ async def remove_from_crl(serial: int, issuer: str):
             revocation_list.append(models.RevokedCert(serial=old_revoked_cert.serial_number,
                                                       revocation_date=old_revoked_cert.revocation_date_utc))
 
-    issuer_cert, issuer_priv_key = load_cert_and_key(serial=issuer)
+    issuer_cert, issuer_priv_key = await load_cert_and_key(serial=issuer)
 
     await build_crl(revocation_list, issuer_cert, issuer_priv_key)
-
-async def load_db(db: Database):
-    global sandia_ca
-    sandia_ca = db
-
-async def unload_db(db: Database):
-    global sandia_ca
-    sandia_ca = None

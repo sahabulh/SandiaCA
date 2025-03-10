@@ -7,7 +7,3 @@ vault/*
 *.ipynb
 
 test.py
-
-pyproject.toml
-README.md
-LICENSE

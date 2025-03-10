@@ -1,4 +1,5 @@
 import requests, sys, os
+from dotenv import load_dotenv
 
 from abc import ABC
 from pathlib import Path
@@ -7,20 +8,24 @@ sys.path.append(abs_path)
 
 from typing import Tuple
 
-import models
-from generate_profiles import create_crypto_profile, create_entity_profiles
+import app.models.models as models
+from app.shared import create
+from examples.generate_profiles import create_crypto_profile, create_entity_profiles
+
+load_dotenv()
 
 headers = {
     'accept':       'application/json',
-    'X-API-KEY':    'iamadmin',
+    'X-API-KEY':    os.getenv('API_KEY'),
     'Content-Type': 'application/json',
 }
 
 crypto_profile = "secp256r1_sha256"
-ca_url = "http://127.0.0.1:8000/"
-ocsp_url = "http://host.docker.internal:8001/"
+ca_url = os.getenv('CA_URL')+":"+os.getenv('CA_PORT')
+ocsp_url = "http://host.docker.internal:"+os.getenv('OCSP_PORT')
 
 class EVerestSaver(ABC):
+    """Saves certificate according to EVerest file structure"""
     cert_path_map = {
         "CPO": {
             "rootca": {"path": "ca/v2g/", "name": "V2G_ROOT_CA"},
@@ -80,6 +85,7 @@ class EVerestSaver(ABC):
             os.system(command)
 
 class MaEVeSaver(ABC):
+    """Saves certificate according to MaEVe file structure"""
     cert_path_map = {
         "CPO": {
             "rootca": "root-V2G-cert",
@@ -126,9 +132,9 @@ class MaEVeSaver(ABC):
             os.system(command)
 
 def load_cert_and_key(serial: str) -> Tuple[str, str]:
-    r = requests.get(ca_url+"cert/"+serial, headers=headers)
+    r = requests.get(ca_url+"/cert/"+serial, headers=headers)
     cert = r.json()["details"]
-    r = requests.get(ca_url+"key/"+serial, headers=headers)
+    r = requests.get(ca_url+"/key/"+serial, headers=headers)
     key = r.json()["details"]
     return cert, key
 
@@ -142,6 +148,13 @@ def save_cert_and_key(serial: str, entity: str, path: str, filename: str):
             file.write(key)
 
 def main():
+    """
+    Generates a base case certificate bundle according to the ISO 15118 standard.
+    Saves the generated certificates locally according to the EVerest and the MaEVe
+    certificate structure. Configured to run tests with these two tools running
+    in docker.
+    """
+
     # Do it for only the first time if data is persisted
     # If data is not persisted, do it everytime after restarting the containers
     create_crypto_profile(crypto_profile=crypto_profile, ca_url=ca_url, headers=headers)
@@ -161,7 +174,7 @@ def main():
     cpo_rootca_model = models.RootCert(domain="V2G", profile=rootca_profile)
     cpo_subca1_model = models.SubCACert(domain="CPO", profile=subca1_profile, issuer_serial="", tier=1)
     cpo_subca2_model = models.SubCACert(domain="CPO", profile=subca2_profile, issuer_serial="", tier=2)
-    cpo_leaf_model = models.LeafCert(domain="CPO", profile=leaf_profile, issuer_serial="", name="SECCLeaf")
+    cpo_leaf_model = models.LeafCert(domain="CPO", profile=leaf_profile, issuer_serial="", name="USSNLS00003C4D557878675645330967543476")
     CPO = models.CertChain(rootca=cpo_rootca_model, subca1=cpo_subca1_model, subca2=cpo_subca2_model, leaf=cpo_leaf_model)
     
     mo_subca1_model = models.SubCACert(domain="MO", profile=subca1_profile, issuer_serial="", tier=1)
@@ -177,11 +190,11 @@ def main():
     csms_server_leaf_model = models.LeafCert(domain="CSMS", profile=leaf_profile, issuer_serial="", name="host.docker.internal")
     CSMS_SERVER = models.CertChain(rootca=None, subca1=None, subca2=None, leaf=csms_server_leaf_model)
 
-    csms_client_leaf_model = models.LeafCert(domain="CSMS", profile=leaf_profile, issuer_serial="", name="USCPIC001LTON3")
+    csms_client_leaf_model = models.LeafCert(domain="CSMS", profile=leaf_profile, issuer_serial="", name="USSNLS00003C4D557878675645330967543476")
     CSMS_CLIENT = models.CertChain(rootca=None, subca1=None, subca2=None, leaf=csms_client_leaf_model)
 
     bundle = models.ISO15118CertBundle(CPO=CPO, MO=MO, OEM=OEM, CSMS_SERVER=CSMS_SERVER, CSMS_CLIENT=CSMS_CLIENT)
-    bundleCreate = models.ISO15118CertBundleCreate(bundle=bundle, ca_url = ca_url)
+    bundleCreate = create.ISO15118CertBundleCreate(bundle=bundle, ca_url = ca_url)
 
     serials = bundleCreate.issue()
 
@@ -199,7 +212,8 @@ def main():
             if serial not in seen:
                 seen.append(serial)
                 ocsp_model.issuer_serial = serial
-                ocsp_create = models.CertCreate(ocsp_model)
-                ocsp_create.issue(ca_url = ca_url+"ocsp")
+                ocsp_create = create.CertCreate(ocsp_model)
+                ocsp_create.issue(ca_url = ca_url+"/ocsp")
 
-main()
+if __name__ == "__main__":
+    main()
