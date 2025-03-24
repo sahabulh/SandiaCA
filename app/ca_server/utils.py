@@ -17,7 +17,7 @@ from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 from app.database.db import insert, find
 
 import app.models.models as models
-from app.models.enums import ValidityStart
+from app.models.enums import ValidityStart, ExtendedKeyUsage
 from app.shared.utils import get_cert_info, get_profiles
 from app.shared.exceptions import DBConnectionError, EntryNotFoundError
 
@@ -26,23 +26,20 @@ from .config import Config
 def get_name(name: str, domain: str) -> x509.Name:
     config = Config()
     config = config.load()
-    if not domain or domain == "":
-        return x509.Name([
-                x509.NameAttribute(NameOID.COMMON_NAME, name),
-                x509.NameAttribute(NameOID.COUNTRY_NAME, config.country_code),
-                x509.NameAttribute(NameOID.ORGANIZATION_NAME, config.organization_name),
-                x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, config.organizational_unit_name),
-                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, config.state_or_province_name),
-            ])
-    else:
-        return x509.Name([
-                x509.NameAttribute(NameOID.COMMON_NAME, name),
-                x509.NameAttribute(NameOID.COUNTRY_NAME, config.country_code),
-                x509.NameAttribute(NameOID.DOMAIN_COMPONENT, domain),
-                x509.NameAttribute(NameOID.ORGANIZATION_NAME, config.organization_name),
-                x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, config.organizational_unit_name),
-                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, config.state_or_province_name),
-            ])
+    name_fields = []
+    name_fields.append(x509.NameAttribute(NameOID.COMMON_NAME, name))
+    if config.country_code and domain != "OCSP":
+        name_fields.append(x509.NameAttribute(NameOID.COUNTRY_NAME, config.country_code))
+    if config.organization_name:
+        name_fields.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, config.organization_name))
+    if config.organizational_unit_name:
+        name_fields.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, config.organizational_unit_name))
+    if config.state_or_province_name:
+        name_fields.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, config.state_or_province_name))
+    if domain != "":
+        name_fields.append(x509.NameAttribute(NameOID.DOMAIN_COMPONENT, domain))
+    
+    return x509.Name(name_fields)
 
 async def save_cert_and_key(cert: x509.Certificate, key: Union[ec.EllipticCurvePrivateKey, ed448.Ed448PrivateKey], issuer_serial: int, profile: models.Profile):
     if not os.path.exists(abs_path+"/vault/"):
@@ -291,11 +288,11 @@ async def build_test_cert(data: models.TestCert) -> Tuple[x509.Certificate, Unio
 
     extended_key_usage = []
     if data.extended_key_usage:
-        if data.extended_key_usage.value == "ocsp_signing":
+        if ExtendedKeyUsage.OCSP_SIGNING in data.extended_key_usage.value:
             extended_key_usage.append(ExtendedKeyUsageOID.OCSP_SIGNING)
-        if data.extended_key_usage.value == "server_auth":
+        if ExtendedKeyUsage.SERVER_AUTH in data.extended_key_usage.value:
             extended_key_usage.append(ExtendedKeyUsageOID.SERVER_AUTH)
-        if data.extended_key_usage.value == "client_auth":
+        if ExtendedKeyUsage.CLIENT_AUTH in data.extended_key_usage.value:
             extended_key_usage.append(ExtendedKeyUsageOID.CLIENT_AUTH)
     if extended_key_usage:
         builder = builder.add_extension(x509.ExtendedKeyUsage(extended_key_usage), critical=data.extended_key_usage.critical)

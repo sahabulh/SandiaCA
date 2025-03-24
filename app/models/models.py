@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import List, NamedTuple, Optional, Union
 from datetime import datetime
 
-from .enums import ValidityStart
+from .enums import ValidityStart, ExtendedKeyUsage
 
 class KeyUsage(NamedTuple):
     digitalSignature: bool = False
@@ -19,7 +19,7 @@ class BasicConstraints(NamedTuple):
     """
     Identifies whether the subject of the certificate is a CA and the maximum
     depth of valid certification paths that include this certificate. See RFC
-    5280 for more information.
+    5280 for more information. Default values are suitable for leaf certs.
     """
 
     ca: bool = False
@@ -87,7 +87,8 @@ class LeafCert(Cert):
     name: str
 
 class Extension(BaseModel):
-    value: Optional[Union[str, BasicConstraints, KeyUsage]] = None
+    value: Optional[Union[str, BasicConstraints, KeyUsage,
+                          List[ExtendedKeyUsage]]] = None
     critical: bool
 
 class Dates(BaseModel):
@@ -100,18 +101,28 @@ class TestCert(BaseModel):
     """
 
     name: str
+    """Commmon Name (CN) of the certificate"""
     dates: Dates
+    """Default value of start is now, and duration is 1 year."""
     issuer_serial: Optional[str] = None
+    """If no issuer serial is provided, certificate will be self-signed."""
     domain: Optional[str] = None
     key_algorithm: Optional[str] = "secp256r1"
     signature_hash: Optional[str] = "sha256"
-    subject_key_identifier: Optional[Extension] = None
-    authority_key_identifier: Optional[Extension] = None
+    subject_key_identifier: Optional[Extension] = Extension(critical=False)
+    """Enabled by default"""
+    authority_key_identifier: Optional[Extension] = Extension(critical=False)
+    """Enabled by default"""
     basic_constraints: Optional[Extension] = None
+    """Disabled by default"""
     key_usage: Optional[Extension] = None
+    """Disabled by default"""
     extended_key_usage: Optional[Extension] = None
+    """Disabled by default"""
     ocsp_url: Optional[Extension] = None
+    """Disabled by default"""
     crl_url: Optional[Extension] = None
+    """Disabled by default"""
 
 class CertInfo(BaseModel):
     serial: str
@@ -138,3 +149,16 @@ class ISO15118CertBundle(BaseModel):
 class RevokedCert(BaseModel):
     serial: int
     revocation_date: datetime
+
+class CertChainSerial(BaseModel):
+    root: Optional[str] = None
+    subca1: Optional[str] = None
+    subca2: Optional[str] = None
+    leaf: Optional[str] = None
+
+class CertBundleSerial(BaseModel):
+    cpo: CertChainSerial = CertChainSerial()
+    mo: CertChainSerial = CertChainSerial()
+    oem: CertChainSerial = CertChainSerial()
+    csms_client: CertChainSerial = CertChainSerial()
+    csms_server: CertChainSerial = CertChainSerial()

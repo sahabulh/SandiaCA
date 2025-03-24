@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from typing import Optional
 
 from pathlib import Path
 abs_path = str(Path(__file__).absolute().parent)
@@ -17,10 +18,10 @@ def get_config(config_path):
 
 @dataclass
 class Config:
-    country_code: str = "US"
+    country_code: Optional[str] = None
     organization_name: str = "Sandia National Labs"
-    organizational_unit_name: str = "Electric Vehicles"
-    state_or_province_name: str = "New Mexico"
+    organizational_unit_name: Optional[str] = None
+    state_or_province_name: Optional[str] = None
 
     def load(self, config_path: str = "config.json"):
         config = get_config(config_path)

@@ -174,7 +174,7 @@ def main():
     cpo_rootca_model = models.RootCert(domain="V2G", profile=rootca_profile)
     cpo_subca1_model = models.SubCACert(domain="CPO", profile=subca1_profile, issuer_serial="", tier=1)
     cpo_subca2_model = models.SubCACert(domain="CPO", profile=subca2_profile, issuer_serial="", tier=2)
-    cpo_leaf_model = models.LeafCert(domain="CPO", profile=leaf_profile, issuer_serial="", name="USSNLS00003C4D557878675645330967543476")
+    cpo_leaf_model = models.LeafCert(domain="CPO", profile=leaf_profile, issuer_serial="", name="USSNLS00003C4D5578786756453309675434762")
     CPO = models.CertChain(rootca=cpo_rootca_model, subca1=cpo_subca1_model, subca2=cpo_subca2_model, leaf=cpo_leaf_model)
     
     mo_subca1_model = models.SubCACert(domain="MO", profile=subca1_profile, issuer_serial="", tier=1)
@@ -184,13 +184,13 @@ def main():
     
     oem_subca1_model = models.SubCACert(domain="OEM", profile=subca1_profile, issuer_serial="", tier=1)
     oem_subca2_model = models.SubCACert(domain="OEM", profile=subca2_profile, issuer_serial="", tier=2)
-    oem_leaf_model = models.LeafCert(domain="OEM", profile=leaf_profile, issuer_serial="", name="OEMLeaf")
+    oem_leaf_model = models.LeafCert(domain="OEM", profile=leaf_profile, issuer_serial="", name="US3PAA00003C4D58Y9")
     OEM = models.CertChain(rootca=None, subca1=oem_subca1_model, subca2=oem_subca2_model, leaf=oem_leaf_model)
 
     csms_server_leaf_model = models.LeafCert(domain="CSMS", profile=leaf_profile, issuer_serial="", name="host.docker.internal")
     CSMS_SERVER = models.CertChain(rootca=None, subca1=None, subca2=None, leaf=csms_server_leaf_model)
 
-    csms_client_leaf_model = models.LeafCert(domain="CSMS", profile=leaf_profile, issuer_serial="", name="USSNLS00003C4D557878675645330967543476")
+    csms_client_leaf_model = models.LeafCert(domain="CSMS", profile=leaf_profile, issuer_serial="", name="USSNLS00003C4D5578786756453309675434762")
     CSMS_CLIENT = models.CertChain(rootca=None, subca1=None, subca2=None, leaf=csms_client_leaf_model)
 
     bundle = models.ISO15118CertBundle(CPO=CPO, MO=MO, OEM=OEM, CSMS_SERVER=CSMS_SERVER, CSMS_CLIENT=CSMS_CLIENT)

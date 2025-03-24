@@ -8,6 +8,7 @@ from cryptography.x509 import load_pem_x509_certificate
 from cryptography.hazmat.primitives import serialization
 
 from app.models.enums import CertFormat
+from app.models.models import CertBundleSerial
 
 load_dotenv()
 
@@ -33,18 +34,33 @@ class CertSaver(BaseModel):
     the private key will not be saved."""
     format: List[CertFormat] = [CertFormat.PEM]
     """List of certificate file formats to be saved"""
+    full_path: Optional[str] = None
+    """Holds the full path to the PEM certificate after local save. Not to be
+    assigned manullay. Use the 'get_full_path_pem' method to get it."""
 
     def save(self, basepath: str):
         """Saves the certificate."""
         if self.path:
             os.makedirs(basepath+"/"+self.path, exist_ok=True)
-            path = basepath+"/"+self.path+"/"+self.name
+            self.full_path = basepath+"/"+self.path+"/"+self.name
         else:
             os.makedirs(basepath, exist_ok=True)
-            path = basepath+"/"+self.name
-        load_and_save_cert(self.serial, path, self.format)
+            self.full_path = basepath+"/"+self.name
+        load_and_save_cert(self.serial, self.full_path, self.format)
         if self.key:
-            load_and_save_key(self.serial, path)
+            load_and_save_key(self.serial, self.full_path)
+
+    def get_full_path_pem(self) -> Optional[str]:
+        """Returns the full path to the PEM certificate."""
+        if hasattr(self, 'full_path'):
+            if CertFormat.PEM in self.format:
+                return self.full_path+".pem"
+            else:
+                print("Certificate was not saved in PEM format.")
+                return None
+        else:
+            print("Save first to get the full path.")
+            return None
 
 class CertChainSaver(BaseModel):
     """Defines a certificate chain to be saved."""
@@ -94,7 +110,101 @@ class CertBundleSaver(BaseModel):
         if self.csms_server:
             self.csms_server.save(path=path)
 
+def EVerestSaver(serials: CertBundleSerial, path: str):
+    """Saves certificate bundle following EVerest structure"""
+    
+    print("Initializing certificate saver for EVerest ...")
+    everest = CertBundleSaver()
 
+    cpo = CertChainSaver()
+    cpo.root = CertSaver(path="ca/v2g", name="V2G_ROOT_CA",
+                         serial=serials.cpo.root)
+    cpo.subca1 = CertSaver(path="ca/csms", name="CPO_SUB_CA_1",
+                          serial=serials.cpo.subca1)
+    cpo.subca2 = CertSaver(path="ca/csms", name="CPO_SUB_CA_2",
+                          serial=serials.cpo.subca2)
+    cpo.leaf = CertSaver(path="client/cso", name="SECC_LEAF",
+                        serial=serials.cpo.leaf, key=True)
+    print("Adding CPO chain saver to the EVerest bundle")
+    everest.cpo = cpo
+
+    mo = CertChainSaver()
+    mo.root = CertSaver(path="ca/mo", name="MO_ROOT_CA", serial=serials.mo.root)
+    mo.subca1 = CertSaver(path="ca/mo", name="MO_SUB_CA_1",
+                          format=[CertFormat.PEM, CertFormat.DER],
+                          serial=serials.mo.subca1)
+    mo.subca2 = CertSaver(path="ca/mo", name="MO_SUB_CA_2",
+                          format=[CertFormat.PEM, CertFormat.DER],
+                          serial=serials.mo.subca2)
+    mo.leaf = CertSaver(path="client/mo", name="MO_LEAF",
+                        format=[CertFormat.PEM, CertFormat.DER],
+                        serial=serials.mo.leaf, key=True)
+    print("Adding MO chain saver to the EVerest bundle")
+    everest.mo = mo
+
+    oem = CertChainSaver()
+    oem.root = CertSaver(path="ca/oem", name="OEM_ROOT_CA", serial=serials.oem.root)
+    oem.subca1 = CertSaver(path="ca/oem", name="OEM_SUB_CA_1",
+                          serial=serials.oem.subca1)
+    oem.subca2 = CertSaver(path="ca/oem", name="OEM_SUB_CA_2",
+                          serial=serials.oem.subca2)
+    oem.leaf = CertSaver(path="client/oem", name="OEM_LEAF",
+                        serial=serials.oem.leaf, key=True)
+    print("Adding OEM chain saver to the EVerest bundle")
+    everest.oem = oem
+
+    csms_client = CertChainSaver()
+    csms_client.leaf = CertSaver(path="client/csms_client", name="CSMS_CLIENT",
+                        serial=serials.csms_client.leaf, key=True)
+    print("Adding CSMS CLIENT chain saver to the EVerest bundle")
+    everest.csms_client = csms_client
+
+    csms_server = CertChainSaver()
+    csms_server.leaf = CertSaver(path="client/csms_server", name="CSMS_SERVER",
+                        serial=serials.csms_server.leaf, key=True)
+    print("Adding CSMS SERVER chain saver to the EVerest bundle")
+    everest.csms_server = csms_server
+
+    print(f"Saving EVerest bundle ...")
+    everest.save(path)
+
+    command = cpo.leaf.get_full_path_pem() + " " + cpo.subca2.get_full_path_pem() + " " + cpo.subca1.get_full_path_pem()
+    command = "cat " + command + " > " + path + "/client/cso/CPO_CERT_CHAIN.pem"
+    os.system(command)
+
+def MaEVeSaver(serials: CertBundleSerial, path: str):
+    """Saves certificate bundle following MaEVe structure"""
+
+    print("Initializing certificate saver for MaEVe ...")
+    maeve = CertBundleSaver()
+
+    print("Adding CPO chain saver to the MaEVe bundle")
+    cpo = CertChainSaver()
+    cpo.root = CertSaver(name="root-V2G-cert", serial=serials.cpo.root)
+    cpo.subca1 = CertSaver(name="cpo_sub_ca1", serial=serials.cpo.subca1)
+    cpo.subca2 = CertSaver(name="cpo_sub_ca2", serial=serials.cpo.subca2)
+    maeve.cpo = cpo
+
+    print("Adding MO chain saver to the MaEVe bundle")
+    mo = CertChainSaver()
+    mo.root = CertSaver(name="root-MO-cert", serial=serials.mo.root)
+    maeve.mo = mo
+
+    print("Adding CSMS SERVER chain saver to the MaEVe bundle")
+    csms_server = CertChainSaver()
+    csms_server.leaf = CertSaver(name="csms", serial=serials.csms_server.leaf, key=True)
+    maeve.csms_server = csms_server
+
+    print(f"Saving MaEVe bundle ...")
+    maeve.save(path)
+
+    os.system("cp " + csms_server.leaf.get_full_path_pem() + " " + path + "/csms_leaf.pem")
+    command = cpo.subca2.get_full_path_pem() + " " + cpo.subca1.get_full_path_pem()
+    command = "cat " + command + " > " + path + "/trust.pem"
+    os.system(command)
+    command = path + "/csms_leaf.pem " + path + "/trust.pem"
+    command = "cat " + command + " > " + path + "/csms.pem"
+    os.system(command)
 
 def load_and_save_cert(serial: str, path: str, format: List[CertFormat]):
     """
