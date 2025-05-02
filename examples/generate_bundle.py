@@ -166,7 +166,7 @@ def main():
     
     mo_subca1_model = models.SubCACert(domain="MO", profile=subca1_profile, issuer_serial="", tier=1)
     mo_subca2_model = models.SubCACert(domain="MO", profile=subca2_profile, issuer_serial="", tier=2)
-    mo_leaf_model = models.LeafCert(domain="MO", profile=leaf_profile, issuer_serial="", name="USCPIC001LTON3")
+    mo_leaf_model = models.LeafCert(domain="MO", profile=leaf_profile, issuer_serial="", name="Contract Certificate")
     MO = models.CertChain(rootca=None, subca1=mo_subca1_model, subca2=mo_subca2_model, leaf=mo_leaf_model)
     
     oem_subca1_model = models.SubCACert(domain="OEM", profile=subca1_profile, issuer_serial="", tier=1)
